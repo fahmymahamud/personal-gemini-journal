@@ -1,0 +1,19 @@
+node_modules
+npm-debug.log*
+
+# Never bake credentials into an image
+.env
+.env.*
+!.env.example
+*serviceAccount*.json
+*service-account*.json
+*-key.json
+
+.git
+.gitignore
+.claude/
+Dockerfile
+.dockerignore
+*.md
+nodemon.json
+extra/

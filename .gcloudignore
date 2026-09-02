@@ -1,0 +1,17 @@
+.git
+.gitignore
+.claude/
+node_modules
+npm-debug.log*
+
+# never upload credentials to Cloud Build
+.env
+.env.*
+!.env.example
+*serviceAccount*.json
+*service-account*.json
+*-key.json
+
+extra/
+nodemon.json
+*.md

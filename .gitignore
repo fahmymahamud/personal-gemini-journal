@@ -1,0 +1,23 @@
+node_modules/
+.env
+.env.local
+*.log
+
+# Never commit credentials
+*serviceAccount*.json
+*service-account*.json
+*-key.json
+key.json
+firebase-adminsdk*.json
+bottoken.txt
+.gcloud/
+
+# every env variant, not just the two named above
+.env.*
+.env.production
+scripts/.env
+# ...except the checked-in template, which holds no real values
+!.env.example
+
+# stray scratch files — keep them out of git
+extra/

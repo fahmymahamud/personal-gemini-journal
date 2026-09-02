@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1420">
+<title>RemindClient — Never chase a payment again</title>
+<meta name="description" content="Payment and lesson reminder app for freelance tutors, coaches and instructors">
+<meta property="og:title" content="RemindClient by ShiftedTech">
+<meta property="og:description" content="Never chase a payment again">
+<meta property="og:type" content="website">
+<meta property="og:image" content="/icon-512.png">
+<meta name="og:color" content="#0A1420">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="RemindClient by ShiftedTech">
+<meta name="twitter:description" content="Never chase a payment again">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles.css">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RemindClient">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230A1420'/><path d='M9 22V10h6a4 4 0 0 1 0 8h-2l4 4' stroke='%232EC4B6' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+</head>
+<body>
+
+<!-- ═══════════════════ LOGIN ═══════════════════ -->
+<section id="auth-view" class="auth" hidden>
+  <div class="glow glow-tr" aria-hidden="true"></div>
+  <div class="glow glow-bl" aria-hidden="true"></div>
+
+  <div class="auth-card">
+    <h1 class="wordmark wordmark-lg">REMIND<span>CLIENT</span></h1>
+    <p class="tagline">Never chase a payment again</p>
+
+    <button id="google-btn" class="btn btn-google" type="button">
+      <svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.7-2 5-4.4 6.6v5.5h7.1c4.2-3.8 6.6-9.5 6.6-16.1z"/><path fill="#34A853" d="M24 46c6 0 11-2 14.6-5.4l-7.1-5.5c-2 1.3-4.5 2.1-7.5 2.1-5.8 0-10.7-3.9-12.4-9.1H4.3v5.7C7.9 41 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.6 28.1c-.5-1.3-.7-2.7-.7-4.1s.3-2.8.7-4.1V14.2H4.3C2.8 17.1 2 20.4 2 24s.8 6.9 2.3 9.8l7.3-5.7z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.3-6.3C35 4.3 30 2 24 2 15.4 2 7.9 7 4.3 14.2l7.3 5.7c1.7-5.2 6.6-9.1 12.4-9.1z"/></svg>
+      <span>Continue with Google</span>
+    </button>
+
+    <div class="divider"><span>or</span></div>
+
+    <form id="email-form" class="stack">
+      <label class="field">
+        <span class="field-label">Email</span>
+        <input id="email" type="email" autocomplete="email" placeholder="coach@example.com" required>
+      </label>
+      <label class="field">
+        <span class="field-label">Password</span>
+        <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" minlength="6" required>
+      </label>
+      <button class="btn btn-teal btn-block" type="submit" data-submit>Sign in</button>
+    </form>
+
+    <p class="switch-mode">
+      <span data-mode-text>New here?</span>
+      <button id="toggle-mode" class="linkish" type="button">Create an account</button>
+    </p>
+
+    <p id="auth-error" class="error" role="alert" hidden></p>
+
+    <p class="byline">by ShiftedTech · @careershifttechguy</p>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ APP ═══════════════════ -->
+<div id="app-view" class="app" hidden>
+
+  <header class="navbar">
+    <span class="wordmark">REMIND<span>CLIENT</span></span>
+    <div class="nav-right">
+      <button id="nav-calendar-btn" class="icon-btn" type="button" title="Calendar" aria-label="Calendar">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6"/><line x1="16" y1="2.5" x2="16" y2="6"/></svg>
+      </button>
+      <a id="admin-link" class="btn btn-ghost btn-sm" href="/admin" hidden>Admin</a>
+      <span id="avatar" class="avatar" aria-hidden="true"></span>
+      <span id="who" class="nav-name"></span>
+      <button id="signout-btn" class="icon-btn" type="button" title="Sign out" aria-label="Sign out">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="layout" data-pane="calendar">
+
+    <!-- ── SIDEBAR ── -->
+    <aside class="sidebar">
+      <div class="side-top">
+        <div class="side-head">
+          <h2 class="side-title">My Students</h2>
+          <button id="add-student-btn" class="btn btn-teal btn-sm" type="button">Add Student</button>
+        </div>
+
+        <div class="search-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.7" y2="16.7"/></svg>
+          <input id="student-search" class="search" type="search" placeholder="Search students to view overview..." aria-label="Search students">
+        </div>
+      </div>
+
+      <div class="side-scroll">
+        <ul id="student-list" class="student-list" hidden></ul>
+
+        <div id="students-skeleton" class="skeleton-list" aria-hidden="true">
+          <div class="skeleton skel-student"></div>
+          <div class="skeleton skel-student"></div>
+          <div class="skeleton skel-student"></div>
+        </div>
+
+        <div id="students-empty" class="empty" hidden>
+          <div class="empty-icon" aria-hidden="true">👨‍🏫</div>
+          <p class="empty-text">Add your first student to get started</p>
+          <button class="btn btn-teal" type="button" data-add-student>Add Student</button>
+        </div>
+
+        <div id="students-error" class="retry-state" hidden>
+          <p class="retry-text">Couldn't load students — tap to retry</p>
+          <button id="students-retry" class="btn btn-teal" type="button">Retry</button>
+        </div>
+      </div>
+
+      <div class="side-foot">
+        <div class="foot-actions">
+          <button id="calendar-btn" class="btn btn-ghost btn-sm" type="button">📅 My Calendar</button>
+          <button id="install-btn" class="btn btn-ghost btn-sm install-btn" type="button" hidden>📱 Add to Home Screen</button>
+        </div>
+        <p class="foot-hint">iPhone: tap Share → Add to Home Screen</p>
+      </div>
+    </aside>
+
+    <!-- ── MAIN ── -->
+    <main class="main">
+
+      <div id="no-selection" class="placeholder">
+        <div class="placeholder-art" aria-hidden="true">
+          <svg viewBox="0 0 120 90" width="128" height="96" fill="none">
+            <rect x="10" y="16" width="62" height="9" rx="4.5" fill="#101E2E"/>
+            <rect x="10" y="33" width="46" height="9" rx="4.5" fill="#101E2E"/>
+            <rect x="10" y="50" width="54" height="9" rx="4.5" fill="#101E2E"/>
+            <rect x="10" y="67" width="34" height="9" rx="4.5" fill="#101E2E"/>
+            <rect x="82" y="24" width="30" height="44" rx="8" fill="#101E2E" stroke="#2EC4B6" stroke-width="1.5"/>
+            <circle cx="97" cy="40" r="4" fill="#2EC4B6"/>
+            <rect x="89" y="49" width="16" height="3" rx="1.5" fill="#2EC4B6" opacity=".55"/>
+            <rect x="89" y="56" width="11" height="3" rx="1.5" fill="#2EC4B6" opacity=".3"/>
+          </svg>
+        </div>
+        <p class="placeholder-text">
+          <svg class="placeholder-arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Select a student to start
+        </p>
+      </div>
+
+      <div id="student-pane" hidden>
+        <nav class="tabs" role="tablist">
+          <button class="tab is-active" type="button" data-tab="overview" role="tab" aria-selected="true">OVERVIEW</button>
+          <button class="tab" type="button" data-tab="chat" role="tab" aria-selected="false">AI CHAT</button>
+        </nav>
+
+        <!-- OVERVIEW -->
+        <section id="tab-overview" class="tab-panel" role="tabpanel">
+          <div class="student-hero">
+            <div class="hero-main">
+              <h2 id="hero-name" class="hero-name"></h2>
+              <p id="hero-payer" class="hero-payer"></p>
+            </div>
+            <div class="hero-side">
+              <span id="hero-fee" class="hero-fee"></span>
+              <span id="hero-status" class="chip chip-lg"></span>
+            </div>
+          </div>
+
+          <div class="hero-actions">
+            <button id="mark-paid-btn" class="btn btn-teal" type="button">Mark as Paid</button>
+            <a id="send-reminder-btn" class="btn btn-ghost" target="_blank" rel="noopener">Send Reminder</a>
+          </div>
+
+          <div class="info-grid">
+            <div class="info-cell"><span class="info-label">Due date</span><span id="info-due" class="info-value"></span></div>
+            <div class="info-cell"><span class="info-label">Next lesson</span><span id="info-lesson" class="info-value"></span></div>
+            <div class="info-cell"><span class="info-label">Payment status</span><span id="info-status" class="info-value"></span></div>
+            <div class="info-cell"><span class="info-label">Last paid</span><span id="info-lastpaid" class="info-value"></span></div>
+          </div>
+
+          <section class="connect">
+            <h3 class="connect-title">Connect Telegram</h3>
+
+            <!-- not yet linked -->
+            <div id="connect-actions" class="connect-actions">
+              <button id="tg-copy-btn" class="btn btn-teal-outline" type="button">📋 Copy Link</button>
+              <a id="tg-open-btn" class="btn btn-teal" target="_blank" rel="noopener">✈ Open Telegram</a>
+            </div>
+            <p id="connect-help" class="connect-help">
+              Send this to your student or parent. When they tap Start in Telegram,
+              they'll be connected here automatically.
+            </p>
+
+            <!-- already linked -->
+            <div id="connect-linked" class="connect-linked" hidden>
+              <span class="connect-ok">✅ Connected to Telegram</span>
+              <button id="tg-disconnect-btn" class="btn btn-ghost btn-sm" type="button">Disconnect</button>
+            </div>
+          </section>
+
+          <section id="notes-block" class="notes" hidden>
+            <h3 class="notes-title">Notes</h3>
+            <p id="notes-body" class="notes-body"></p>
+          </section>
+
+          <div class="overview-foot">
+            <button id="edit-student-btn" class="btn btn-ghost btn-sm" type="button">Edit student</button>
+          </div>
+
+          <div class="danger-zone">
+            <button id="delete-student-btn" class="btn btn-danger btn-sm" type="button">Delete Student</button>
+          </div>
+        </section>
+
+        <!-- AI CHAT -->
+        <section id="tab-chat" class="tab-panel" role="tabpanel" hidden>
+          <div class="chat-head">
+            <div>
+              <h2 id="chat-title" class="chat-title">AI Reminder Assistant</h2>
+              <p id="chat-subtitle" class="chat-sub"></p>
+            </div>
+            <button id="new-thread-btn" class="btn btn-ghost btn-sm" type="button" hidden>New thread</button>
+          </div>
+
+          <div class="quota">
+            <div class="quota-row">
+              <span id="quota-text" class="quota-text">— / 20 messages today</span>
+            </div>
+            <div class="quota-track"><div id="quota-fill" class="quota-fill"></div></div>
+          </div>
+
+          <div id="messages" class="messages" aria-live="polite"></div>
+          <template id="chat-empty-tpl">
+            <div class="empty">
+              <div class="empty-icon" aria-hidden="true">✨</div>
+              <p class="empty-text">Select a student and ask me to draft a reminder</p>
+            </div>
+          </template>
+          <div id="suggestions" class="suggestions"></div>
+
+          <form id="chat-form" class="composer">
+            <textarea id="chat-input" rows="1" placeholder="Ask Gemini to draft or refine a message…" aria-label="Message to Gemini"></textarea>
+            <button id="chat-send" class="btn btn-teal btn-send" type="submit" aria-label="Send">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </form>
+        </section>
+      </div>
+
+      <!-- ── CALENDAR ── -->
+      <div id="calendar-pane" hidden>
+        <header class="cal-head">
+          <button id="cal-prev" class="icon-btn" type="button" aria-label="Previous month">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <h2 id="cal-title" class="cal-title" aria-live="polite"></h2>
+          <button id="cal-next" class="icon-btn" type="button" aria-label="Next month">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <span class="spacer"></span>
+          <ul class="cal-legend">
+            <li><span class="cal-dot dot-paid"></span>Paid</li>
+            <li><span class="cal-dot dot-unpaid"></span>Due</li>
+            <li><span class="cal-dot dot-overdue"></span>Overdue</li>
+          </ul>
+        </header>
+
+        <div class="cal-body">
+          <div class="cal-weekdays" aria-hidden="true">
+            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+          </div>
+          <div id="cal-skeleton" class="skel-grid" hidden aria-hidden="true">
+            <div class="skeleton skel-cell"></div><div class="skeleton skel-cell"></div>
+            <div class="skeleton skel-cell"></div><div class="skeleton skel-cell"></div>
+            <div class="skeleton skel-cell"></div><div class="skeleton skel-cell"></div>
+            <div class="skeleton skel-cell"></div><div class="skeleton skel-cell"></div>
+            <div class="skeleton skel-cell"></div><div class="skeleton skel-cell"></div>
+            <div class="skeleton skel-cell"></div><div class="skeleton skel-cell"></div>
+            <div class="skeleton skel-cell"></div><div class="skeleton skel-cell"></div>
+          </div>
+
+          <div id="cal-grid" class="cal-grid" role="group" aria-labelledby="cal-title"></div>
+
+          <div id="cal-empty" class="empty" hidden>
+            <div class="empty-icon" aria-hidden="true">📚</div>
+            <p class="empty-text">Add students to see their lessons here</p>
+            <button class="btn btn-teal" type="button" data-add-student>Add Student</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- mobile pane switcher -->
+  <nav class="tabbar">
+    <button class="tabbar-btn" type="button" data-pane-btn="students">
+      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
+      <span>Students</span>
+    </button>
+    <button class="tabbar-btn is-active" type="button" data-pane-btn="calendar">
+      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6"/><line x1="16" y1="2.5" x2="16" y2="6"/></svg>
+      <span>Calendar</span>
+    </button>
+  </nav>
+</div>
+
+
+<!-- ═══════════════════ MODAL ═══════════════════ -->
+<dialog id="student-dialog" class="dialog">
+  <form id="student-form" method="dialog">
+    <h2 id="dialog-title" class="dialog-title">Add Student</h2>
+
+    <div class="form-grid">
+      <label class="field"><span class="field-label">Student name *</span><input name="name" required maxlength="120" placeholder="Muayyad"></label>
+      <label class="field"><span class="field-label">Student phone *</span><input name="studentPhone" required placeholder="9123 4567"></label>
+
+      <label class="field"><span class="field-label">Payer name</span><input name="payerName" maxlength="120" placeholder="Parent / guardian"></label>
+      <label class="field"><span class="field-label">Payer phone</span><input name="payerPhone" placeholder="Leave blank if same"></label>
+
+      <fieldset class="field field-wide day-picker">
+        <legend class="field-label">Lesson days</legend>
+        <div class="day-pills">
+          <label class="day-pill"><input type="checkbox" name="lessonDays" value="Mon"><span>Mon</span></label>
+          <label class="day-pill"><input type="checkbox" name="lessonDays" value="Tue"><span>Tue</span></label>
+          <label class="day-pill"><input type="checkbox" name="lessonDays" value="Wed"><span>Wed</span></label>
+          <label class="day-pill"><input type="checkbox" name="lessonDays" value="Thu"><span>Thu</span></label>
+          <label class="day-pill"><input type="checkbox" name="lessonDays" value="Fri"><span>Fri</span></label>
+          <label class="day-pill"><input type="checkbox" name="lessonDays" value="Sat"><span>Sat</span></label>
+          <label class="day-pill"><input type="checkbox" name="lessonDays" value="Sun"><span>Sun</span></label>
+        </div>
+      </fieldset>
+
+      <label class="field"><span class="field-label">Lesson time</span><input name="lessonTime" type="time"></label>
+      <label class="field"><span class="field-label">Location</span><input name="location" maxlength="200" placeholder="e.g. My home, Zoom"></label>
+
+      <label class="field"><span class="field-label">Fee amount</span><input name="feeAmount" type="number" min="0" step="0.01" placeholder="0.00"></label>
+      <label class="field"><span class="field-label">Currency</span><input name="feeCurrency" value="SGD" maxlength="3"></label>
+
+      <label class="field"><span class="field-label">Payment status</span>
+        <select name="paymentStatus">
+          <option value="unpaid">Unpaid</option>
+          <option value="paid">Paid</option>
+          <option value="overdue">Overdue</option>
+        </select>
+      </label>
+      <label class="field"><span class="field-label">Last paid</span><input name="lastPaidDate" type="date"></label>
+
+      <label class="field field-wide"><span class="field-label">Telegram chat ID <em>optional</em></span><input name="telegramChatId" maxlength="64"></label>
+      <label class="field field-wide"><span class="field-label">Notes</span><textarea name="notes" rows="3" maxlength="2000" placeholder="Prefers evening lessons, pays monthly…"></textarea></label>
+    </div>
+
+    <p id="dialog-error" class="error" role="alert" hidden></p>
+
+    <div class="dialog-foot">
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" type="button" data-close>Cancel</button>
+      <button class="btn btn-teal" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ═══════════ DAY DETAIL ═══════════ -->
+<dialog id="day-dialog" class="dialog dialog-day">
+  <div class="day-wrap">
+    <header class="day-head">
+      <h2 id="day-title" class="day-title"></h2>
+      <div class="day-head-actions">
+        <button id="day-add" class="btn btn-teal btn-sm" type="button">Add Event</button>
+        <button id="day-close" class="icon-btn" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="day-body">
+      <ul id="day-list" class="day-list"></ul>
+
+      <div id="day-empty" class="empty" hidden>
+        <div class="empty-icon" aria-hidden="true">📅</div>
+        <p class="empty-text">No lessons on this day</p>
+        <button id="day-add-empty" class="btn btn-teal" type="button">Add Event</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<!-- ═══════════ EDIT THIS LESSON ═══════════ -->
+<dialog id="lesson-dialog" class="dialog dialog-sm">
+  <form id="lesson-form" class="event-wrap" method="dialog">
+    <h2 id="lesson-title" class="dialog-title">Edit Lesson</h2>
+
+    <div class="event-fields">
+      <label class="field">
+        <span class="field-label">Date</span>
+        <input id="lesson-date" type="text" readonly tabindex="-1">
+      </label>
+      <label class="field">
+        <span class="field-label">Time</span>
+        <input id="lesson-time" name="time" type="time">
+      </label>
+      <label class="field field-wide">
+        <span class="field-label">Location</span>
+        <input id="lesson-location" name="location" maxlength="200" placeholder="e.g. My home, Zoom">
+      </label>
+      <label class="field field-wide">
+        <span class="field-label">Note <em>optional</em></span>
+        <textarea id="lesson-note" name="note" rows="3" maxlength="2000" placeholder="Any notes for this occurrence..."></textarea>
+      </label>
+    </div>
+
+    <fieldset class="scope-choice">
+      <legend class="field-label">Apply to</legend>
+      <label class="scope-opt">
+        <input type="radio" name="scope" value="single" checked>
+        <span>Save for this date only</span>
+      </label>
+      <label class="scope-opt">
+        <input type="radio" name="scope" value="future">
+        <span>Save for all future lessons</span>
+      </label>
+    </fieldset>
+
+    <p id="lesson-error" class="error" role="alert" hidden></p>
+
+    <div class="dialog-foot">
+      <button id="lesson-remove" class="btn btn-danger btn-sm" type="button">Remove from Calendar</button>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" type="button" data-close-lesson>Cancel</button>
+      <button id="lesson-save" class="btn btn-teal" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ═══════════ EVENT DETAIL ═══════════ -->
+<dialog id="event-detail-dialog" class="dialog dialog-sm">
+  <div class="detail-wrap">
+    <header class="day-head">
+      <h2 id="detail-title" class="day-title"></h2>
+      <div class="day-head-actions">
+        <button id="detail-close" class="icon-btn" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <dl id="detail-body" class="detail-body"></dl>
+
+    <div class="dialog-foot">
+      <button id="detail-delete" class="btn btn-danger btn-sm" type="button">Delete</button>
+      <span class="spacer"></span>
+      <button id="detail-edit" class="btn btn-teal" type="button">Edit</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ═══════════ ADD EVENT ═══════════ -->
+<dialog id="event-dialog" class="dialog dialog-sm">
+  <form id="event-form" class="event-wrap" method="dialog">
+    <h2 id="event-title" class="dialog-title">Add Event</h2>
+
+    <div class="type-toggle" role="radiogroup" aria-label="Event type">
+      <button type="button" class="type-btn is-active" data-type="lesson" role="radio" aria-checked="true">📚 Lesson</button>
+      <button type="button" class="type-btn" data-type="note" role="radio" aria-checked="false">📝 Note</button>
+    </div>
+
+    <!-- LESSON -->
+    <div id="event-lesson-fields" class="event-fields">
+      <label class="field field-wide">
+        <span class="field-label">Student</span>
+        <select id="event-student" name="studentId">
+          <option value="">Select student</option>
+        </select>
+      </label>
+      <label class="field field-wide">
+        <span class="field-label">Location</span>
+        <input name="location" maxlength="200" placeholder="e.g. My home, Zoom, Student's place">
+      </label>
+      <label class="field">
+        <span class="field-label">Date</span>
+        <input id="event-date-lesson" type="text" readonly tabindex="-1">
+      </label>
+      <label class="field">
+        <span class="field-label">Time</span>
+        <input id="event-time" name="time" type="time" value="09:00">
+      </label>
+      <label class="field field-wide">
+        <span class="field-label">Duration</span>
+        <select name="duration">
+          <option value="30">30 min</option>
+          <option value="60" selected>1 hour</option>
+          <option value="90">1.5 hours</option>
+          <option value="120">2 hours</option>
+        </select>
+      </label>
+      <label class="field field-wide">
+        <span class="field-label">Notes <em>optional</em></span>
+        <textarea name="notes" rows="3" maxlength="2000" placeholder="Any notes for this lesson..."></textarea>
+      </label>
+    </div>
+
+    <!-- NOTE -->
+    <div id="event-note-fields" class="event-fields" hidden>
+      <label class="field field-wide">
+        <span class="field-label">Title</span>
+        <input id="event-note-title" name="title" maxlength="200" placeholder="e.g. Parent called, Fee discussed">
+      </label>
+      <label class="field field-wide">
+        <span class="field-label">Date</span>
+        <input id="event-date-note" type="text" readonly tabindex="-1">
+      </label>
+      <label class="field field-wide">
+        <span class="field-label">Note</span>
+        <textarea id="event-note-body" name="noteBody" rows="4" maxlength="2000" placeholder="Write your note here..."></textarea>
+      </label>
+    </div>
+
+    <p id="event-error" class="error" role="alert" hidden></p>
+
+    <div class="dialog-foot">
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" type="button" data-close-event>Cancel</button>
+      <button id="event-save" class="btn btn-teal" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ═══════════ CALENDAR SUBSCRIPTION ═══════════ -->
+<dialog id="subscribe-dialog" class="dialog dialog-sm">
+  <div class="sub-wrap">
+    <h2 class="dialog-title">Subscribe to Lesson Calendar</h2>
+    <p class="dialog-sub">Parents get automatic reminders before every lesson — no app needed.</p>
+
+    <div class="sub-actions">
+      <a id="sub-ios" class="btn btn-teal btn-block" rel="noopener">📅 Subscribe on iPhone</a>
+      <p class="sub-help">Safari opens → tap Subscribe → done</p>
+
+      <a id="sub-android" class="btn btn-teal-outline btn-block" target="_blank" rel="noopener">📅 Subscribe on Android</a>
+      <p class="sub-help">Google Calendar opens → tap Add → done</p>
+
+      <button id="sub-copy" class="btn btn-ghost btn-sm btn-block" type="button">📋 Copy Link (advanced)</button>
+      <p class="sub-help">For other calendar apps</p>
+    </div>
+
+    <p class="sub-foot">Calendar updates automatically when lesson times change.</p>
+
+    <div class="dialog-foot">
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" type="button" data-close-sub>Close</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

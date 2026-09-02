@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0A1420">
+<title>RemindClient — Admin</title>
+<meta name="description" content="Payment and lesson reminder app for freelance tutors, coaches and instructors">
+<meta name="robots" content="noindex">
+<meta property="og:title" content="RemindClient by ShiftedTech">
+<meta property="og:description" content="Never chase a payment again">
+<meta name="og:color" content="#0A1420">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230A1420'/><path d='M9 22V10h6a4 4 0 0 1 0 8h-2l4 4' stroke='%232EC4B6' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+</head>
+<body>
+
+<div class="admin-shell">
+  <header class="navbar">
+    <span class="wordmark">REMIND<span>CLIENT</span> <em class="admin-tag">Admin</em></span>
+    <div class="nav-right">
+      <span id="who" class="nav-name"></span>
+      <a class="btn btn-ghost btn-sm" href="/">Back to App</a>
+      <button id="signout-btn" class="btn btn-ghost btn-sm" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+
+    <div id="state-loading" class="admin-state">
+      <div class="spinner spinner-lg"></div>
+      <p>Checking access…</p>
+    </div>
+
+    <div id="state-denied" class="admin-state" hidden>
+      <h2 class="admin-state-title">Access Denied</h2>
+      <p id="denied-detail">This account does not have administrator access.</p>
+      <div class="admin-state-actions">
+        <button id="denied-signout" class="btn btn-teal" type="button">Sign out</button>
+        <a class="btn btn-ghost" href="/">Back to App</a>
+      </div>
+    </div>
+
+    <div id="state-error" class="admin-state" hidden>
+      <h2 class="admin-state-title">Dashboard could not load</h2>
+      <p id="error-detail"></p>
+      <p class="admin-state-hint">You do have admin access — this is a server-side failure, not a permissions problem.</p>
+      <div class="admin-state-actions">
+        <button id="error-retry" class="btn btn-teal" type="button">Retry</button>
+        <a class="btn btn-ghost" href="/">Back to App</a>
+      </div>
+    </div>
+
+    <div id="state-ok" hidden>
+
+      <section class="stat-row">
+        <div class="stat"><span class="stat-label">Total Coaches</span><span id="stat-coaches" class="stat-value is-teal-num">—</span></div>
+        <div class="stat"><span class="stat-label">Total Students</span><span id="stat-students" class="stat-value is-teal-num">—</span></div>
+        <div class="stat"><span class="stat-label">AI Messages Today</span><span id="stat-messages" class="stat-value is-teal-num">—</span></div>
+        <div class="stat"><span class="stat-label">Active This Week</span><span id="stat-active" class="stat-value is-teal-num">—</span></div>
+      </section>
+
+      <section class="admin-card">
+        <div class="card-head">
+          <h2 class="admin-h2">Coaches</h2>
+          <span id="coach-page-info" class="admin-note-inline"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Email</th><th>Students</th><th>Last Active</th><th>Plan</th><th>Actions</th></tr></thead>
+            <tbody id="coach-rows"></tbody>
+          </table>
+        </div>
+        <div id="coach-pager" class="pager" hidden>
+          <button id="coach-prev" class="btn btn-ghost btn-sm" type="button">← Prev</button>
+          <button id="coach-next" class="btn btn-ghost btn-sm" type="button">Next →</button>
+        </div>
+      </section>
+
+      <section class="admin-card">
+        <div class="card-head">
+          <h2 class="admin-h2">Access Control</h2>
+          <button id="add-coach-btn" class="btn btn-teal btn-sm" type="button">Add Coach</button>
+        </div>
+
+        <p id="enforcement-banner" class="banner"></p>
+
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Email</th><th>Plan</th><th>Paid Until</th><th>Added By</th><th>Actions</th></tr></thead>
+            <tbody id="allow-rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<dialog id="coach-dialog" class="dialog">
+  <form id="coach-form" method="dialog">
+    <h2 class="dialog-title">Add Coach</h2>
+    <div class="stack">
+      <label class="field"><span class="field-label">Email</span>
+        <input name="email" type="email" placeholder="coach@example.com" required>
+      </label>
+      <label class="field"><span class="field-label">Plan</span>
+        <select name="plan">
+          <option value="trial">Trial (3 months)</option>
+          <option value="monthly">Monthly</option>
+          <option value="annual">Annual</option>
+        </select>
+      </label>
+      <label class="field"><span class="field-label">Paid until <em>auto-filled from plan</em></span>
+        <input name="paid_until" type="date" required>
+      </label>
+    </div>
+    <p id="coach-error" class="error" role="alert" hidden></p>
+    <div class="dialog-foot">
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" type="button" data-close>Cancel</button>
+      <button class="btn btn-teal" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<footer class="app-footer">
+  RemindClient by Fahmy Mahamud · Built with Google Cloud, Firebase &amp; Gemini
+</footer>
+
+<div id="toast" class="toast" role="status" hidden></div>
+<script type="module" src="./admin.js"></script>
+</body>
+</html>
