@@ -58,18 +58,6 @@ router.post('/send', async (req, res) => {
   // Graph wants digits only — a leading + is rejected on the `to` field.
   const to = e164.replace(/\D/g, '');
 
-  // [wa-debug] temporary diagnostics — grep '[wa-debug]' to strip.
-  console.log('[wa-debug] send', JSON.stringify({
-    uid: req.uid,
-    studentId: String(studentId),
-    student: student.name,
-    payerPhone: student.payerPhone || null,
-    studentPhone: student.studentPhone || null,
-    sendingTo: e164,
-    tokenChars: token.length,
-    phoneIdChars: phoneId.length,
-  }));
-
   const response = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${phoneId}/messages`, {
     method: 'POST',
     headers: {
@@ -86,12 +74,14 @@ router.post('/send', async (req, res) => {
 
   const data = await response.json().catch(() => ({}));
 
-  // [wa-debug] temporary diagnostics — grep '[wa-debug]' to strip.
-  console.log(`[wa-debug] meta ${response.status} ${JSON.stringify(data).slice(0, 600)}`);
-
   if (!response.ok || data.error) {
     const meta = data.error || {};
     const code = meta.code ?? meta.error_subcode;
+
+    // Enough to diagnose a rejection without naming who it was for: Meta's own
+    // code, and the trace id their support asks for. No student, no number.
+    console.warn(`whatsapp: send rejected ${response.status} code=${code ?? 'none'} `
+      + `fbtrace=${meta.fbtrace_id || 'none'}`);
 
     if (code === BAD_OR_EXPIRED_TOKEN) {
       // Names the actual fix. Without this the coach only ever sees wa.me open
