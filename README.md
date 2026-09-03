@@ -36,17 +36,31 @@ That is why I created RemindClient for freelance tutors, coaches, and instructor
 
 ### Phase 1 — Google AI Studio Security Constitution
 
-Before any code was written, a **security constitution** was configured as custom system instructions in Google AI Studio. Every architectural decision below traces back to one of its directives:
+The following custom system instructions were configured in Google AI Studio **before any code was written**. These directives act as a security constitution — shaping every architectural and implementation decision throughout the build.
 
-| Directive | How it shaped the codebase |
+![Google AI Studio system instructions — RemindClient Security Constitution](docs/Phase_1_AI_Studio_Config.png)
+
+The constitution covers seven production-grade directives:
+
+- **Threat Modeling** — OWASP Top 10 risks identified before every feature
+- **Authentication** — Firebase ID tokens verified server-side, client UIDs never trusted
+- **Database Isolation** — every Firestore query scoped to authenticated uid, subcollection paths enforced
+- **Secret Management** — all credentials in Google Cloud Secret Manager, never hardcoded
+- **Input Validation** — all inputs sanitized server-side, unexpected fields rejected
+- **Error Handling** — stack traces never exposed to clients, webhooks always return 200
+- **Rate Limiting** — per-user AI call limits tracked in Firestore to prevent abuse and cost overruns
+
+Each directive is traceable to a concrete decision in the codebase:
+
+| Directive | How it shaped the build |
 |---|---|
-| **Threat Modeling (OWASP Top 10)** | Broken access control and injection were treated as the primary risks. Every data path is uid-scoped by construction, and all user input passes a validation layer before reaching Firestore. |
-| **Authentication** | No endpoint trusts a client-supplied identity. Firebase ID tokens are verified **server-side** with the Firebase Admin SDK on every request. |
-| **Database Isolation** | Per-user isolation is enforced by the document path itself (`users/{uid}/students`), not by a query filter that could be forgotten. |
-| **Secret Management** | No credential appears in source. All secrets live in Google Cloud Secret Manager and are injected at Cloud Run runtime. |
-| **Input Validation** | A dedicated schema module normalises and validates every student field — phone numbers to E.164, times to 24-hour `HH:MM`, statuses to a fixed enum, with hard length caps. |
-| **Error Handling** | Internal errors return a generic message. Only errors explicitly marked as safe reach the user, and those name the fix rather than the internals. |
-| **Rate Limiting** | AI usage is capped per coach per day, counted in a Firestore transaction so concurrent requests cannot overshoot the limit. |
+| **Threat Modeling** | Broken access control and injection treated as the primary risks. Every data path is uid-scoped by construction; all user input passes a validation layer before reaching Firestore. |
+| **Authentication** | No endpoint trusts a client-supplied identity. ID tokens are verified with the Firebase Admin SDK in `requireAuth` before any handler runs. The two exceptions — the health check and the Telegram webhook — carry their own signed verification. |
+| **Database Isolation** | Enforced by the document path itself (`users/{uid}/students`), not a query filter that could be forgotten. There is no shared root collection to leak from. |
+| **Secret Management** | Five secrets in Secret Manager, injected at Cloud Run runtime. `.env` is gitignored and excluded from both the image and the build upload; no service-account key file exists. |
+| **Input Validation** | A dedicated schema module normalises every student field — phones to E.164, times to 24-hour `HH:MM`, statuses to a closed enum — with hard length caps. Chat history from the browser is re-sanitised server-side. |
+| **Error Handling** | Internal errors return a generic message; only errors explicitly flagged as safe reach the user, and those name the fix rather than the internals. The Telegram webhook always answers 200, because a non-200 makes Telegram retry forever. |
+| **Rate Limiting** | 20 AI calls per coach per day, counted in a Firestore transaction — 25 concurrent requests against a limit of 10 let exactly 10 through. |
 
 ### Phase 2 — Core Requirements
 
