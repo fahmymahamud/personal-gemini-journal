@@ -91,6 +91,9 @@ router.delete('/:id/telegram', async (req, res) => {
 
   await ref.update({
     telegramChatId: null,
+    telegramName: null,
+    telegramUsername: null,
+    telegramLinkedAt: null,
     connectionToken: null,
     updatedAt: FieldValue.serverTimestamp(),
   });

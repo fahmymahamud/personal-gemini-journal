@@ -384,7 +384,35 @@ function renderConnect(s) {
   $('#connect-linked').hidden = !linked;
   $('#connect-actions').hidden = linked;
   $('#connect-help').hidden = linked;
-  if (linked) return;
+
+  if (linked) {
+    // Name the account, never just "connected". Testing your own invite link
+    // binds the student to your own chat, and without the name that mistake is
+    // invisible until reminders start arriving in the wrong inbox.
+    const who = s.telegramName
+      ? `${s.telegramName}${s.telegramUsername ? ` (@${s.telegramUsername})` : ''}`
+      : null;
+    $('#connect-ok-line').textContent = who
+      ? `✅ Connected to ${who}`
+      : '✅ Connected to Telegram';
+
+    // Same chat behind two students is legitimate for siblings, but it is also
+    // exactly what a self-test looks like, so say so rather than stay quiet.
+    const shared = state.students.filter(
+      (o) => o.id !== s.id && o.telegramChatId === s.telegramChatId);
+    const warn = $('#connect-warn');
+    if (shared.length) {
+      warn.textContent = `Also linked to ${shared.map((o) => o.name).join(', ')} — `
+        + 'if that is not the same parent, disconnect and resend the link.';
+      warn.hidden = false;
+    } else if (!s.telegramName) {
+      warn.textContent = 'Linked before names were recorded — reconnect to confirm who this is.';
+      warn.hidden = false;
+    } else {
+      warn.hidden = true;
+    }
+    return;
+  }
 
   const open = $('#tg-open-btn');
   const cached = inviteLinks.get(s.id);

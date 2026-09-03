@@ -990,3 +990,5 @@ textarea { resize: vertical; line-height: 1.5; }
 .stat-value.is-teal-num { color: var(--teal); }
 .admin-state-actions { display: flex; gap: 10px; }
 .admin-state-hint { margin: 0; color: var(--text-secondary); font-size: 12.5px; max-width: 460px; }
+.connect-who { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.connect-warn { color: var(--warning); font-size: 11.5px; line-height: 1.45; }

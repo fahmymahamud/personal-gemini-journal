@@ -110,12 +110,23 @@ webhookRouter.post('/', async (req, res) => {
       return void tell(chatId, NO_TOKEN_REPLY);
     }
 
+    // Record WHO connected, not just the chat id. A coach testing their own
+    // invite link binds the student to their own account, and a bare
+    // "Connected to Telegram" hides that until reminders quietly arrive in the
+    // wrong inbox. Showing the name makes a mis-bind obvious at a glance.
+    const chat = message.chat;
+    const displayName = [chat.first_name, chat.last_name].filter(Boolean).join(' ')
+      || chat.username || `chat ${chatId}`;
+
     const doc = snap.docs[0];
     await doc.ref.update({
       telegramChatId: String(chatId),
+      telegramName: displayName,
+      telegramUsername: chat.username || null,
+      telegramLinkedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    console.log(`webhook: connected chat ${chatId} to student ${doc.id}`);
+    console.log(`webhook: connected chat ${chatId} (${displayName}) to student ${doc.id}`);
     await tell(chatId, CONNECTED_REPLY);
   } catch (err) {
     console.error('webhook processing failed:', err);
