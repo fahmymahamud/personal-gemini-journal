@@ -114,6 +114,7 @@ Every credential is stored in Google Cloud Secret Manager and injected at Cloud 
 | `telegram-bot-token` | Telegram Bot API token |
 | `calendar-secret` | HMAC key signing per-coach calendar feed tokens |
 | `admin-uid` | Comma-separated list of admin uids |
+| `telegram-webhook-secret` | Verifies inbound Telegram webhook calls |
 
 Nothing is hardcoded. `.env` is gitignored, `.dockerignore` and `.gcloudignore` keep it out of both the container image and the build upload, and service-account key files are never used — the app authenticates via **Application Default Credentials**, so no key material exists to leak.
 
@@ -168,7 +169,7 @@ Express.js on Cloud Run
 
 **Calendar feed tokens are signed.** The `.ics` endpoint cannot use a bearer header — calendar clients don't send one — so it authenticates with an HMAC-SHA256 token compared in constant time. A forged signature, a swapped uid and a truncated token are all rejected.
 
-**Telegram webhook hardening.** The webhook validates Telegram's `X-Telegram-Bot-Api-Secret-Token` header when `TELEGRAM_WEBHOOK_SECRET` is configured. *This is implemented but not currently enabled on the deployed service* — the endpoint is protected in practice by the 22-character random connection tokens it resolves, and enabling the header check is a single environment variable plus a `setWebhook` call.
+**Telegram webhook hardening.** The webhook endpoint is necessarily public — Telegram cannot send an `Authorization` header — so it authenticates every call by the `X-Telegram-Bot-Api-Secret-Token` header that Telegram echoes back from `setWebhook`, compared against a 43-character secret held in Secret Manager. Enforcement is **live**: a forged update with no header or a wrong header is rejected with 401, while a genuine Telegram call completes the connect flow and writes the chat ID. The handler also answers 200 *before* touching Firestore, because a non-200 makes Telegram retry the same update indefinitely.
 
 ---
 
