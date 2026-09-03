@@ -10,7 +10,7 @@ import chatRoutes from './src/routes/chat.js';
 import eventRoutes from './src/routes/events.js';
 import calendarRoutes from './src/routes/calendar.js';
 import telegramRoutes, { webhookRouter as telegramWebhook } from './src/routes/telegram.js';
-import whatsappRoutes from './src/routes/whatsapp.js';
+import whatsappRoutes, { webhookRouter as whatsappWebhook } from './src/routes/whatsapp.js';
 import adminRoutes from './src/routes/admin.js';
 import { requireAdmin } from './src/admin.js';
 
@@ -23,6 +23,23 @@ app.use(express.json({ limit: '256kb' }));
 // Access log. Records whether an Authorization header arrived and how long the
 // token was — never the token itself — which is enough to tell "browser sent
 // nothing" apart from "server rejected it".
+// Credentials that travel in a query string — the calendar feed's signed token
+// and Meta's webhook verify token — would otherwise be written to Cloud Logging
+// in full, where they outlive the request and are readable by anyone with log
+// access. The path and the fact a value was present are what make a log useful.
+const REDACTED_PARAMS = new Set(['token', 'hub.verify_token']);
+
+function safeUrl(originalUrl) {
+  const cut = originalUrl.indexOf('?');
+  if (cut === -1) return originalUrl;
+
+  const params = new URLSearchParams(originalUrl.slice(cut + 1));
+  for (const key of params.keys()) {
+    if (REDACTED_PARAMS.has(key)) params.set(key, 'REDACTED');
+  }
+  return `${originalUrl.slice(0, cut)}?${params}`;
+}
+
 app.use((req, res, next) => {
   const started = Date.now();
   res.on('finish', () => {
@@ -30,7 +47,7 @@ app.use((req, res, next) => {
     const auth = header
       ? `auth=Bearer(${(header.split(' ')[1] || '').length} chars)`
       : 'auth=NONE';
-    console.log(`${req.method} ${req.originalUrl} -> ${res.statusCode} ${Date.now() - started}ms ${auth}`);
+    console.log(`${req.method} ${safeUrl(req.originalUrl)} -> ${res.statusCode} ${Date.now() - started}ms ${auth}`);
   });
   next();
 });
@@ -49,6 +66,10 @@ app.use('/api/chat', requireAuth, chatRoutes);
 app.use('/api/events', requireAuth, eventRoutes);
 // Must precede the authenticated mount below: Express matches in order, and
 // Telegram cannot send an Authorization header.
+// Must precede the authenticated mount: Express matches in order, and
+// '/api/whatsapp' would otherwise swallow '/api/whatsapp/webhook' and hand
+// Meta a 401 it cannot satisfy — Meta sends no Authorization header.
+app.use('/api/whatsapp/webhook', whatsappWebhook);
 app.use('/api/whatsapp', requireAuth, whatsappRoutes);
 app.use('/api/telegram/webhook', telegramWebhook);
 app.use('/api/telegram', requireAuth, telegramRoutes);

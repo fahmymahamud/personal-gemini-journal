@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Router } from 'express';
 import { studentsCol } from '../firebase.js';
 import { toE164 } from '../student-schema.js';
@@ -101,3 +102,90 @@ router.post('/send', async (req, res) => {
 });
 
 export default router;
+
+/* ── Meta webhooks ──────────────────────────────────────────────────────────
+ * Both endpoints are public by necessity: Meta cannot send an Authorization
+ * header. Mounted separately in server.js, ahead of the authenticated
+ * /api/whatsapp mount, or requireAuth would reject the dashboard's calls.
+ */
+export const webhookRouter = Router();
+
+/**
+ * Constant-time compare, so a wrong token cannot be narrowed byte by byte.
+ * Differing lengths short-circuit — timingSafeEqual throws across sizes — and
+ * leak only the length, which is not worth protecting here.
+ */
+function verifyTokenMatches(given) {
+  const expected = process.env.WHATSAPP_VERIFY_TOKEN;
+  if (!expected || typeof given !== 'string') return false;
+
+  const a = Buffer.from(given);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+// Called once when the webhook is saved in the Meta dashboard. Echoing
+// hub.challenge back as plain text is what completes the handshake.
+webhookRouter.get('/', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const challenge = req.query['hub.challenge'];
+
+  if (mode === 'subscribe' && verifyTokenMatches(req.query['hub.verify_token'])) {
+    console.log('whatsapp: webhook verification succeeded');
+    return res.status(200).type('text/plain').send(String(challenge ?? ''));
+  }
+
+  console.warn(`whatsapp: verification rejected (mode=${mode || 'none'})`);
+  res.sendStatus(403);
+});
+
+/** Best effort — the payload shape varies by field, so nothing is assumed. */
+function summarise(body) {
+  const out = [];
+  for (const entry of body?.entry || []) {
+    for (const change of entry.changes || []) {
+      const value = change.value || {};
+
+      // An inbound reply from a parent.
+      for (const message of value.messages || []) {
+        out.push({
+          kind: 'reply',
+          from: message.from || 'unknown',
+          text: message.text?.body ?? `[${message.type || 'non-text'}]`,
+        });
+      }
+
+      // Delivery receipts: sent / delivered / read / failed.
+      for (const status of value.statuses || []) {
+        out.push({ kind: 'status', from: status.recipient_id || 'unknown', text: status.status });
+      }
+    }
+  }
+  return out;
+}
+
+webhookRouter.post('/', (req, res) => {
+  // Answer first, unconditionally. Meta retries any non-200 with backoff and
+  // eventually disables the subscription, so nothing below may reach the
+  // response — every failure is swallowed and logged instead.
+  res.sendStatus(200);
+
+  try {
+    const items = summarise(req.body);
+    if (!items.length) return void console.log('whatsapp: update carried no messages or statuses');
+
+    for (const item of items) {
+      // A parent's phone number is personal data. The last four digits are
+      // enough to match against a student without writing the number to logs.
+      const masked = String(item.from).replace(/.(?=.{4})/g, '•');
+      if (item.kind === 'reply') {
+        console.log(`whatsapp: reply from ${masked}: ${item.text.slice(0, 200)}`);
+      } else {
+        console.log(`whatsapp: delivery ${item.text} for ${masked}`);
+      }
+    }
+  } catch (err) {
+    console.error('whatsapp: could not parse update', err);
+  }
+});
