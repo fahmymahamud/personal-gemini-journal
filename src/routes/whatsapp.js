@@ -11,10 +11,15 @@ const MAX_MESSAGE_CHARS = 4096;
 // development WhatsApp app only pre-registered numbers can be messaged, so
 // this is the error a coach is overwhelmingly most likely to hit.
 const NOT_A_TEST_RECIPIENT = 131030;
+// Meta's generic OAuth failure. The temporary token on the API Setup page
+// lasts 24 hours, so this is what a working integration decays into overnight.
+const BAD_OR_EXPIRED_TOKEN = 190;
 
 function config() {
-  const token = process.env.WHATSAPP_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_ID;
+  // Trimmed: a secret created with `echo` rather than `printf` carries a
+  // trailing newline, which has no place in a header value.
+  const token = process.env.WHATSAPP_TOKEN?.trim();
+  const phoneId = process.env.WHATSAPP_PHONE_ID?.trim();
   if (!token || !phoneId) {
     // 503 rather than 500: the client treats it as "API unavailable" and falls
     // back to opening wa.me, which is the whole point of keeping that path.
@@ -87,6 +92,19 @@ router.post('/send', async (req, res) => {
   if (!response.ok || data.error) {
     const meta = data.error || {};
     const code = meta.code ?? meta.error_subcode;
+
+    if (code === BAD_OR_EXPIRED_TOKEN) {
+      // Names the actual fix. Without this the coach only ever sees wa.me open
+      // and has no way to tell a dead token from an unreachable number.
+      const err = new Error(
+        'The WhatsApp access token has expired. Generate a new one under '
+        + 'WhatsApp → API Setup in the Meta dashboard and update the '
+        + 'whatsapp-token secret.');
+      err.status = 502;
+      err.expose = true;
+      err.code = 'whatsapp_token_expired';
+      throw err;
+    }
 
     if (code === NOT_A_TEST_RECIPIENT) {
       const err = new Error(

@@ -164,7 +164,7 @@ async function loadStudents() {
     state.studentsFailed = true;
     setStudentsState('error');
     renderCalendar();   // otherwise the grid shimmers forever
-    console.error('Could not load students', err);
+    console.error('Could not load clients', err);
   }
 }
 
@@ -699,7 +699,10 @@ async function sendWhatsApp(btn, student, text, fallbackLink) {
     restore();
     if (!fallbackLink) return void toast(err.message, { error: true });
 
-    toast('Opening WhatsApp instead…');
+    // Say why the API path failed. Falling back silently is what made an
+    // expired token look like the button simply being wired to wa.me.
+    toast(err.message ? `${err.message} Opening WhatsApp instead…` : 'Opening WhatsApp instead…',
+      { error: true, ms: 6000 });
     // This runs after an await, so the click's user-gesture window has closed
     // and a popup blocker may refuse the new tab outright. window.open returns
     // null when that happens; navigating this tab is never blocked, and on a
@@ -724,7 +727,7 @@ async function sendTelegram(btn, studentId, message) {
       btn.disabled = false;
     }, 2000);
   } catch (err) {
-    toastError(err, "Couldn't send — check the student's Telegram connection");
+    toastError(err, "Couldn't send — check the client's Telegram connection");
     btn.innerHTML = original;
     btn.disabled = false;
   }
@@ -1173,7 +1176,7 @@ function recurringLessonRow(entry) {
   const view = document.createElement('button');
   view.type = 'button';
   view.className = 'chip-action chip-view';
-  view.textContent = 'View Student';
+  view.textContent = 'View Client';
   actions.append(view);
 
   // One handler on the row; View Student's click bubbles into it.
@@ -1268,7 +1271,7 @@ $('#lesson-remove').addEventListener('click', async () => {
   if (!editingLesson) return;
   const [year, month, day] = editingLesson.date.split('-').map(Number);
   const pretty = DAY_TITLE_FMT.format(new Date(year, month - 1, day));
-  if (!confirm(`Remove this lesson from ${pretty}? The student record stays unchanged.`)) return;
+  if (!confirm(`Remove this lesson from ${pretty}? The client record stays unchanged.`)) return;
 
   const btn = $('#lesson-remove');
   btn.disabled = true;
@@ -1310,7 +1313,7 @@ let detailEventId = null;
 const DETAIL_FIELDS = {
   lesson: [
     ['Time', (e) => e.time],
-    ['Student', (e) => e.studentName],
+    ['Client', (e) => e.studentName],
     ['Location', (e) => e.location],
     ['Duration', (e) => (e.duration ? `${e.duration} min` : '')],
     ['Notes', (e) => e.notes],
@@ -1419,7 +1422,7 @@ function fillStudentOptions() {
   const select = $('#event-student');
   const placeholder = document.createElement('option');
   placeholder.value = '';
-  placeholder.textContent = 'Select student';
+  placeholder.textContent = 'Select client';
   select.replaceChildren(placeholder, ...state.students.map((s) => {
     const opt = document.createElement('option');
     opt.value = s.id;
@@ -1492,7 +1495,7 @@ eventForm.addEventListener('submit', async (e) => {
     : { type: 'note', date: eventDate, title: data.title, notes: data.noteBody };
 
   if (eventType === 'lesson' && !body.studentId) {
-    showEventError('Pick a student for this lesson.');
+    showEventError('Pick a client for this lesson.');
     return;
   }
   if (eventType === 'note' && !body.title.trim()) {
@@ -1698,7 +1701,7 @@ function openDialog(student) {
   editingId = student?.id || null;
   form.reset();
   showDialogError('');
-  $('#dialog-title').textContent = student ? 'Edit Student' : 'Add Student';
+  $('#dialog-title').textContent = student ? 'Edit Client' : 'Add Client';
 
   // A checkbox group is a RadioNodeList, not a single field — setting .value
   // on it would silently do the wrong thing, so it is filled separately.
@@ -1739,11 +1742,11 @@ form.addEventListener('submit', async (e) => {
   try {
     if (editingId) {
       await api(`/api/students/${editingId}`, { method: 'PATCH', body });
-      toast('Student saved');
+      toast('Client saved');
     } else {
       const { student } = await api('/api/students', { method: 'POST', body });
       state.selectedId = student.id;
-      toast('Student saved');
+      toast('Client saved');
     }
     dialog.close();
     await loadStudents();
@@ -1770,9 +1773,9 @@ $('#delete-student-btn').addEventListener('click', async () => {
     state.selectedId = null;
     await Promise.all([loadStudents(), loadEvents()]);
     setView('calendar');
-    toast('Student deleted');
+    toast('Client deleted');
   } catch (err) {
-    toastError(err, "Couldn't delete the student — try again");
+    toastError(err, "Couldn't delete the client — try again");
   } finally {
     btn.disabled = false;
   }
