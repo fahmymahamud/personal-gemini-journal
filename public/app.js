@@ -414,16 +414,16 @@ function renderConnect(s) {
     return;
   }
 
-  const open = $('#tg-open-btn');
+  const btn = $('#tg-invite-btn');
   const cached = inviteLinks.get(s.id);
   if (cached) {
-    open.href = cached.deepLink;
-    open.removeAttribute('aria-disabled');
+    applyInviteLink(s, cached);
   } else {
-    // No token yet: fetch one, then fill both buttons in.
-    open.removeAttribute('href');
-    open.setAttribute('aria-disabled', 'true');
-    ensureInviteLink(s.id);
+    // No token minted yet: disable until the fetch lands, then fill it in.
+    btn.removeAttribute('href');
+    btn.setAttribute('aria-disabled', 'true');
+    $('#connect-nophone').hidden = true;
+    ensureInviteLink(s.id).catch(() => {});
   }
 
   const copy = $('#tg-copy-btn');
@@ -437,12 +437,36 @@ async function ensureInviteLink(studentId) {
   const link = { copyUrl: data.copyUrl, deepLink: data.deepLink };
   inviteLinks.set(studentId, link);
   // The coach may have switched students while this was in flight.
-  if (state.selectedId === studentId) {
-    const open = $('#tg-open-btn');
-    open.href = link.deepLink;
-    open.removeAttribute('aria-disabled');
-  }
+  if (state.selectedId === studentId) applyInviteLink(selectedStudent(), link);
   return link;
+}
+
+// t.me links arrive without a scheme; WhatsApp only makes them tappable with one.
+const inviteHttps = (copyUrl) => (/^https?:\/\//.test(copyUrl) ? copyUrl : `https://${copyUrl}`);
+
+// The tutor sends this to the parent. It must never be opened on the tutor's
+// own device — tapping Start binds the student to whoever taps, which is how
+// reminders end up arriving back at the tutor.
+function inviteMessage(student, copyUrl) {
+  const who = student.payerName || student.name;
+  return `Hi ${who}! I'm using RemindClient to send lesson and payment reminders for `
+    + `${student.name}. Tap here to receive them on Telegram: ${inviteHttps(copyUrl)}`;
+}
+
+function applyInviteLink(student, link) {
+  const btn = $('#tg-invite-btn');
+  if (!student || !link) return;
+
+  const phone = (student.payerPhone || student.studentPhone || '').replace(/\D/g, '');
+  $('#connect-nophone').hidden = !!phone;
+
+  if (phone) {
+    btn.href = `https://wa.me/${phone}?text=${encodeURIComponent(inviteMessage(student, link.copyUrl))}`;
+    btn.removeAttribute('aria-disabled');
+  } else {
+    btn.removeAttribute('href');
+    btn.setAttribute('aria-disabled', 'true');
+  }
 }
 
 let copyResetTimer;
