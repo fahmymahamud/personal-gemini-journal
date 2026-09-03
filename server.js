@@ -10,6 +10,7 @@ import chatRoutes from './src/routes/chat.js';
 import eventRoutes from './src/routes/events.js';
 import calendarRoutes from './src/routes/calendar.js';
 import telegramRoutes, { webhookRouter as telegramWebhook } from './src/routes/telegram.js';
+import whatsappRoutes from './src/routes/whatsapp.js';
 import adminRoutes from './src/routes/admin.js';
 import { requireAdmin } from './src/admin.js';
 
@@ -48,6 +49,7 @@ app.use('/api/chat', requireAuth, chatRoutes);
 app.use('/api/events', requireAuth, eventRoutes);
 // Must precede the authenticated mount below: Express matches in order, and
 // Telegram cannot send an Authorization header.
+app.use('/api/whatsapp', requireAuth, whatsappRoutes);
 app.use('/api/telegram/webhook', telegramWebhook);
 app.use('/api/telegram', requireAuth, telegramRoutes);
 // Mounted without requireAuth: /feed.ics carries its own signed token because

@@ -656,14 +656,16 @@ function renderMessages() {
       }
 
       const link = waLink(student, turn.text);
-      if (link) {
-        const wa = document.createElement('a');
+      if (link || student) {
+        // A button, not a link: it tries the Cloud API first and only opens
+        // wa.me if that fails, so the manual path stays available whenever the
+        // API is unconfigured, rate limited, or the number is not allowlisted.
+        const wa = document.createElement('button');
+        wa.type = 'button';
         wa.className = 'chip-action chip-wa';
-        wa.href = link;
-        wa.target = '_blank';
-        wa.rel = 'noopener';
         wa.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M17.5 14.4c-.3-.2-1.7-.9-2-1-.3-.1-.5-.1-.7.1-.2.3-.7 1-.9 1.2-.2.2-.3.2-.6.1-.3-.2-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6l.5-.5c.1-.2.2-.3.3-.5 0-.2 0-.4 0-.5 0-.2-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.2.2 2.1 3.2 5.1 4.4 1.9.8 2.6.9 3.5.7.6-.1 1.7-.7 1.9-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2z"/></svg>';
         wa.append('Send via WhatsApp');
+        wa.addEventListener('click', () => sendWhatsApp(wa, student, turn.text, link));
         actions.append(wa);
       }
       row.append(actions);
@@ -682,6 +684,38 @@ function renderMessages() {
   }
 
   box.scrollTop = box.scrollHeight;
+}
+
+// Tries the WhatsApp Cloud API, and falls back to opening wa.me when it cannot
+// deliver. The fallback is the important half: the Cloud API only reaches
+// numbers registered as test recipients until the Meta app is approved, so
+// most real parents are unreachable through it today.
+async function sendWhatsApp(btn, student, text, fallbackLink) {
+  if (!student || btn.disabled) return;
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+
+  const restore = () => { btn.innerHTML = original; btn.disabled = false; };
+
+  try {
+    await api('/api/whatsapp/send', {
+      method: 'POST',
+      body: { studentId: student.id, message: text },
+    });
+    btn.classList.add('is-sent');
+    btn.textContent = '✓ Sent';
+    toast('✓ Sent via WhatsApp');
+    setTimeout(() => { btn.classList.remove('is-sent'); restore(); }, 2000);
+  } catch (err) {
+    restore();
+    if (fallbackLink) {
+      toast('Opening WhatsApp instead…');
+      window.open(fallbackLink, '_blank', 'noopener');
+    } else {
+      toast(err.message);
+    }
+  }
 }
 
 async function sendTelegram(btn, studentId, message) {
