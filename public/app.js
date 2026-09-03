@@ -364,10 +364,12 @@ function renderOverview(s) {
   $('#notes-block').hidden = !s.notes;
   $('#notes-body').textContent = s.notes || '';
 
-  const link = $('#send-reminder-btn');
-  const wa = waLink(s, defaultReminder(s));
-  if (wa) { link.href = wa; link.removeAttribute('aria-disabled'); }
-  else { link.removeAttribute('href'); link.setAttribute('aria-disabled', 'true'); }
+  // Same route as the chat's Send via WhatsApp: the Cloud API first, wa.me only
+  // if that fails. It was an <a href="wa.me"> until now, which could never call
+  // the API at all — clicking it just navigated.
+  const send = $('#send-reminder-btn');
+  send.disabled = !waLink(s, '');   // neither path can work without a number
+  send.title = send.disabled ? `${s.name} has no phone number on file` : '';
 
   $('#mark-paid-btn').disabled = status === 'paid';
   $('#mark-paid-btn').textContent = status === 'paid' ? 'Already paid' : 'Mark as Paid';
@@ -529,6 +531,13 @@ function waLink(student, text) {
   if (!phone) return null;
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }
+
+$('#send-reminder-btn').addEventListener('click', () => {
+  const s = selectedStudent();
+  if (!s) return;
+  const text = defaultReminder(s);
+  sendWhatsApp($('#send-reminder-btn'), s, text, waLink(s, text));
+});
 
 $('#mark-paid-btn').addEventListener('click', async () => {
   const s = selectedStudent();
