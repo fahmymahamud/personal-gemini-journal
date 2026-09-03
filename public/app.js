@@ -699,22 +699,29 @@ async function sendWhatsApp(btn, student, text, fallbackLink) {
   const restore = () => { btn.innerHTML = original; btn.disabled = false; };
 
   try {
-    await api('/api/whatsapp/send', {
+    const res = await api('/api/whatsapp/send', {
       method: 'POST',
       body: { studentId: student.id, message: text },
     });
+    // The route answers { sent: true }. Treating any non-throwing reply as
+    // success would claim delivery for a response shape that never promised it.
+    if (!res?.sent) throw new Error('WhatsApp did not confirm delivery');
+
     btn.classList.add('is-sent');
     btn.textContent = '✓ Sent';
     toast('✓ Sent via WhatsApp');
     setTimeout(() => { btn.classList.remove('is-sent'); restore(); }, 2000);
   } catch (err) {
     restore();
-    if (fallbackLink) {
-      toast('Opening WhatsApp instead…');
-      window.open(fallbackLink, '_blank', 'noopener');
-    } else {
-      toast(err.message);
-    }
+    if (!fallbackLink) return void toast(err.message, { error: true });
+
+    toast('Opening WhatsApp instead…');
+    // This runs after an await, so the click's user-gesture window has closed
+    // and a popup blocker may refuse the new tab outright. window.open returns
+    // null when that happens; navigating this tab is never blocked, and on a
+    // phone it is the normal hand-off to the WhatsApp app anyway.
+    const opened = window.open(fallbackLink, '_blank', 'noopener');
+    if (!opened) window.location.href = fallbackLink;
   }
 }
 
