@@ -364,13 +364,6 @@ function renderOverview(s) {
   $('#notes-block').hidden = !s.notes;
   $('#notes-body').textContent = s.notes || '';
 
-  // Same route as the chat's Send via WhatsApp: the Cloud API first, wa.me only
-  // if that fails. It was an <a href="wa.me"> until now, which could never call
-  // the API at all — clicking it just navigated.
-  const send = $('#send-reminder-btn');
-  send.disabled = !waLink(s, '');   // neither path can work without a number
-  send.title = send.disabled ? `${s.name} has no phone number on file` : '';
-
   $('#mark-paid-btn').disabled = status === 'paid';
   $('#mark-paid-btn').textContent = status === 'paid' ? 'Already paid' : 'Mark as Paid';
 }
@@ -515,29 +508,11 @@ $('#tg-disconnect-btn').addEventListener('click', async () => {
   }
 });
 
-// Used for the Overview "Send Reminder" shortcut. Prefers the latest Gemini
-// draft for this student so the button matches what the coach just refined.
-function defaultReminder(s) {
-  const thread = state.threads.get(s.id) || [];
-  const lastModel = [...thread].reverse().find((t) => t.role === 'model');
-  if (lastModel) return lastModel.text;
-  const who = s.payerName || s.name;
-  const amount = s.feeAmount ? ` of ${money(s)}` : '';
-  return `Hi ${who}, just a gentle reminder about the outstanding lesson fee${amount} for ${s.name}. Thank you!`;
-}
-
 function waLink(student, text) {
   const phone = (student?.payerPhone || student?.studentPhone || '').replace(/\D/g, '');
   if (!phone) return null;
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }
-
-$('#send-reminder-btn').addEventListener('click', () => {
-  const s = selectedStudent();
-  if (!s) return;
-  const text = defaultReminder(s);
-  sendWhatsApp($('#send-reminder-btn'), s, text, waLink(s, text));
-});
 
 $('#mark-paid-btn').addEventListener('click', async () => {
   const s = selectedStudent();
