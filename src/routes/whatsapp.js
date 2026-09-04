@@ -203,7 +203,11 @@ webhookRouter.post('/', (req, res) => {
       // enough to match against a student without writing the number to logs.
       const masked = String(item.from).replace(/.(?=.{4})/g, '•');
       if (item.kind === 'reply') {
-        console.log(`whatsapp: reply from ${masked}: ${item.text.slice(0, 200)}`);
+        // Length, not content. A parent replying here is not a user of this
+        // app and never agreed to anything; their message is readable in
+        // WhatsApp itself, so keeping a copy in Cloud Logging for 30 days
+        // buys nothing and is theirs to have kept private.
+        console.log(`whatsapp: reply from ${masked} (${item.text.length} chars)`);
       } else {
         console.log(`whatsapp: delivery ${item.text} for ${masked}`);
       }
