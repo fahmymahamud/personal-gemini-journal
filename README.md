@@ -260,8 +260,23 @@ Deployed in **asia-southeast1**, matching the Firestore database region.
 
 ---
 
+## Firestore Security Rules
+
+Client access to Firestore is **denied entirely** (`firestore.rules`). The browser never talks to Firestore directly — every read and write goes through the Express backend on Cloud Run, which:
+
+1. Verifies the caller's Firebase Auth ID token with the Admin SDK (`requireAuth` middleware)
+2. Scopes every query to the verified `uid` via `users/{uid}/students/...`, `users/{uid}/events/...`, `users/{uid}/usage/...` subcollection paths
+3. Never trusts a client-supplied user identifier
+
+This is deliberately stricter than typical per-user client rules: even if the public web config were leaked, no document can be read or written from a client. Isolation is enforced server-side, verified by cross-user tests during development.
+
+Rules are deployed with `firebase deploy --only firestore:rules`.
+
+---
+
+
 ## About
 
 Built by **Fahmy Mahamud** ([@careershifttechguy](https://github.com/fahmymahamud)) for the **Gen AI Academy Competition 2026**.
 
-**ShiftedTech** · [github.com/fahmymahamud](https://github.com/fahmymahamud)
+
