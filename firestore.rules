@@ -1,0 +1,20 @@
+rules_version = '2';
+
+// RemindClient — Firestore Security Rules
+//
+// Architecture note: the browser NEVER talks to Firestore directly.
+// Every read and write goes through the Express backend on Cloud Run,
+// which uses the Firebase Admin SDK after verifying the caller's
+// Firebase Auth ID token. Per-user isolation is enforced in the API
+// layer via users/{uid}/... subcollection paths scoped to the verified uid.
+//
+// Therefore client-side access is denied entirely. This is deliberately
+// stricter than per-user client rules: even a leaked anon/web config
+// cannot read or write any document.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
