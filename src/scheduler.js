@@ -196,33 +196,37 @@ const merge = (into, from) => {
 };
 
 /**
- * Drains the one-off follow-ups a "Remind me later" tap created.
+ * Drains the one-off follow-ups a "Remind me later" tap created, for one
+ * student.
  *
- * These live in a subcollection per student rather than in autoReminders,
- * because they are a queue rather than a rule: each fires once, at a moment,
- * and is then done. Collapsing the two would mean the weekly guard applied to
- * them, which is exactly wrong for a reminder deliberately asked for.
+ * Per student rather than across the collection group on purpose. A
+ * collectionGroup query filtered on `sent` needs a COLLECTION_GROUP_ASC index
+ * exemption that has to be provisioned separately — and until it exists the
+ * query throws, which took the whole sweep down with it the first time this
+ * shipped. A subcollection query uses the automatic single-field index, needs
+ * no infrastructure, and the sweep is already holding the student ref.
+ *
+ * Failures are contained here for the same reason: a problem with follow-ups
+ * must never stop the weekly reminders, which are the thing people actually
+ * depend on.
  */
-async function processFollowups({ now, budget }) {
+async function processFollowups(studentDoc, { now, budget }) {
   const out = { sent: 0, failed: 0, skipped: 0, results: [] };
-  const due = await db.collectionGroup('followups')
-    .where('sent', '==', false).get();
+  const student = studentDoc.data();
+
+  let due;
+  try {
+    due = await studentDoc.ref.collection('followups').where('sent', '==', false).get();
+  } catch (err) {
+    console.error(`scheduler: could not read followups for ${studentDoc.id} — ${err.message}`);
+    return out;
+  }
+  if (due.empty) return out;
 
   for (const doc of due.docs) {
     const followup = doc.data();
     if (new Date(followup.sendAt).getTime() > now.getTime()) continue;
 
-    const studentRef = doc.ref.parent.parent;
-    const studentDoc = await studentRef.get();
-    if (!studentDoc.exists) {
-      // The student was deleted after asking to be reminded; drop the queue
-      // entry rather than retrying it every five minutes forever.
-      await doc.ref.update({ sent: true, sentAt: new Date(now).toISOString(), skipped: 'student gone' });
-      out.skipped++;
-      continue;
-    }
-
-    const student = studentDoc.data();
     if (!student.telegramChatId) { out.skipped++; continue; }
     if (budget.left <= 0) { out.skipped++; continue; }
 
@@ -242,7 +246,9 @@ async function processFollowups({ now, budget }) {
       // retries rather than dropping a reminder the parent asked for.
       await doc.ref.update({ lastError: `${new Date(now).toISOString()}: ${result.description}` });
       out.failed++;
-      out.results.push({ studentId: studentDoc.id, followupId: doc.id, status: 'failed', detail: result.description });
+      out.results.push({
+        studentId: studentDoc.id, followupId: doc.id, status: 'failed', detail: result.description,
+      });
     }
   }
   return out;
@@ -264,11 +270,10 @@ export async function checkDueReminders({ now = new Date() } = {}) {
 
   for (const doc of snap.docs) {
     merge(totals, await processStudent(doc, { now, mode: 'due', coachName: null, budget }));
+    // Follow-ups share the same send budget: a runaway queue must not be able
+    // to spend the cap the weekly reminders are also drawing on.
+    merge(totals, await processFollowups(doc, { now, budget }));
   }
-
-  // Follow-ups share the same send budget: a runaway queue must not be able to
-  // spend the cap the weekly reminders are also drawing on.
-  merge(totals, await processFollowups({ now, budget }));
 
   const { results, ...counts } = totals;
   console.log(`scheduler: ${JSON.stringify(counts)}`);
