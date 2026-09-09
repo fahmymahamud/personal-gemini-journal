@@ -1,45 +1,70 @@
 /* ═══════════════ RemindClient — ShiftedTech ═══════════════ */
 
 :root {
-  /* Clean Slate: light content area, deep-charcoal chrome, blue accent.
+  /* Four brand colours and nothing else: white #FFFFFF, black #000000,
+     red #CE1126, green #007A3D. Every grey below is neutral, mixed from black
+     rather than tinted, so no fifth hue creeps in.
 
-     Two conventions to know before editing below.
-     1. A status colour comes as a quartet. The solid tone (--danger) is for
-        fills, dots and bars; --danger-text / -soft / -line are the tinted-chip
-        trio, because #EF4444 as 12px text on white is 3.8:1 and fails AA.
-     2. The chrome (.navbar, .sidebar) re-declares these same tokens instead of
-        overriding each child rule, so everything nested inside inverts itself. */
+     Three conventions to know before editing.
 
-  --bg: #F8FAFC;              /* page ground */
+     1. Green is the ACTION colour and red is the DANGER colour. Both are brand
+        colours, so the split is by role, not by preference: Save, Confirm and
+        Mark as Paid are green; Delete, Reject and Overdue are red. Making the
+        primary button red would put it in the same visual language as Delete
+        Student, which sits four inches below it.
+
+     2. A status colour comes as a quartet — the solid tone drives fills, dots
+        and bars, while -text / -soft / -line are the tinted-chip trio. Both
+        brand colours clear 4.5:1 on white as text (red 5.6, green 5.5) and
+        carry white text as a fill, which is unusually convenient; the tints
+        exist for chips, not to rescue contrast.
+
+     3. The chrome (.navbar, .sidebar) re-declares these same tokens instead of
+        overriding each child rule, so everything nested inside inverts itself.
+        Neither brand colour is legible on black (red 3.7, green 3.9), so the
+        chrome scopes lighten them rather than using them raw. */
+
+  --bg: #FFFFFF;              /* page ground */
   --surface: #FFFFFF;         /* cards, dialogs, calendar cells */
-  --surface-subtle: #F8FAFC;  /* insets sitting on a white surface */
+  --surface-subtle: #F6F6F6;  /* insets sitting on a white surface */
   --field-bg: #FFFFFF;        /* input ground */
-  --sidebar: #1E293B;         /* deep charcoal chrome */
-  --hover: #F1F5F9;
+  --sidebar: #000000;         /* the chrome rail */
+  --hover: #F0F0F0;
 
-  --text-primary: #0F172A;
-  --text-secondary: #64748B;
-  --placeholder: #94A3B8;
+  --text-primary: #000000;
+  --text-secondary: #5C5C5C;
+  --placeholder: #8C8C8C;
 
-  --border: #E2E8F0;
-  --border-strong: #CBD5E1;
+  /* Cards are the same white as the page, so the border is the only thing
+     separating them — it carries more weight here than it did on an off-white
+     ground and is a step darker to match. */
+  --border: #E0E0E0;
+  --border-strong: #BFBFBF;
 
-  /* --accent fills and outlines; --accent-text is the weight that stays
-     legible as small text on a light ground. */
-  --accent: #3B82F6;
-  --accent-hover: #2563EB;
-  --accent-text: #2563EB;
-  --accent-soft: #EFF6FF;
-  --accent-line: #BFDBFE;
-  --accent-ring: rgba(59, 130, 246, 0.18);
+  --accent: #007A3D;
+  --accent-hover: #005E2F;
+  --accent-text: #007A3D;
+  --accent-soft: #E6F3EC;
+  --accent-line: #A9D4BE;
+  --accent-ring: rgba(0, 122, 61, 0.22);
 
-  --success: #22C55E; --success-text: #15803D; --success-soft: #DCFCE7; --success-line: #86EFAC;
-  --warning: #F59E0B; --warning-text: #B45309; --warning-soft: #FEF3C7; --warning-line: #FDE68A;
-  --danger:  #EF4444; --danger-text:  #B91C1C; --danger-soft:  #FEE2E2; --danger-line:  #FECACA;
+  /* Paid shares the action green: both mean "this went well". */
+  --success: #007A3D; --success-text: #006934; --success-soft: #E6F3EC; --success-line: #A9D4BE;
 
-  --track: #E2E8F0;
-  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 20px rgba(15, 23, 42, 0.06);
-  --shadow-dialog: 0 24px 48px rgba(15, 23, 42, 0.18);
+  /* No amber in the palette, so "warning" is neutral rather than invented.
+     Due-but-not-late is genuinely not an alarm, and the states that must shout
+     — overdue, and the navbar count — have red to themselves. */
+  --warning: #4A4A4A; --warning-text: #333333; --warning-soft: #F0F0F0; --warning-line: #C7C7C7;
+
+  --danger:  #CE1126; --danger-text:  #A80E1F; --danger-soft:  #FBE8EA; --danger-line:  #EFB4BC;
+
+  /* The wordmark's second half. Red is the louder brand colour and the
+     wordmark is where it earns its place; on black it needs lightening. */
+  --mark: #CE1126;
+
+  --track: #E0E0E0;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 20px rgba(0, 0, 0, 0.07);
+  --shadow-dialog: 0 24px 48px rgba(0, 0, 0, 0.22);
 
   --radius: 12px;
   --radius-sm: 8px;
@@ -62,7 +87,7 @@
 
 html, body { height: 100%; }
 html { scroll-behavior: smooth; }
-::selection { background: rgba(59, 130, 246, 0.20); }
+::selection { background: rgba(0, 122, 61, 0.22); }
 
 body {
   margin: 0;
@@ -82,7 +107,7 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.01em; 
 *::-webkit-scrollbar { width: 6px; height: 6px; }
 *::-webkit-scrollbar-track { background: transparent; border-radius: var(--radius-pill); }
 *::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: var(--radius-pill); }
-*::-webkit-scrollbar-thumb:hover { background: var(--placeholder); }
+*::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 a:focus-visible, button:focus-visible, input:focus-visible,
@@ -123,7 +148,7 @@ button, a, .btn, .chip-action, .tabbar-btn, .type-btn, .suggestion, .student, .c
   color: var(--text-primary);
   white-space: nowrap;
 }
-.wordmark span { color: var(--accent-text); }
+.wordmark span { color: var(--mark); }
 .wordmark-lg { font-size: 28px; letter-spacing: -0.01em; }
 
 /* ═══════════════ buttons ═══════════════ */
@@ -204,7 +229,7 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px var(--accent-ring);
 }
 select { appearance: none; cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235C5C5C' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
 }
 textarea { resize: vertical; line-height: 1.5; }
@@ -229,8 +254,8 @@ textarea { resize: vertical; line-height: 1.5; }
   overflow: hidden;
 }
 .glow { position: absolute; width: 520px; height: 520px; border-radius: 50%; pointer-events: none; filter: blur(90px); }
-.glow-tr { top: -240px; right: -200px; background: radial-gradient(circle, rgba(59,130,246,0.14), transparent 70%); }
-.glow-bl { bottom: -260px; left: -220px; background: radial-gradient(circle, rgba(59,130,246,0.10), transparent 70%); }
+.glow-tr { top: -240px; right: -200px; background: radial-gradient(circle, rgba(0,122,61,0.13), transparent 70%); }
+.glow-bl { bottom: -260px; left: -220px; background: radial-gradient(circle, rgba(206,17,38,0.09), transparent 70%); }
 
 .auth-card {
   position: relative;
@@ -263,15 +288,18 @@ textarea { resize: vertical; line-height: 1.5; }
 
   /* Chrome, not content: the bar re-declares the surface tokens so the
      wordmark, ghost buttons and admin tag inside it invert on their own. */
-  --text-primary: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --placeholder: #94A3B8;
-  --border: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(255, 255, 255, 0.26);
-  --hover: rgba(255, 255, 255, 0.08);
-  --accent-text: #93C5FD;
-  --accent-soft: rgba(59, 130, 246, 0.18);
-  --accent-line: rgba(59, 130, 246, 0.45);
+  --text-primary: #FFFFFF;
+  --text-secondary: #A6A6A6;
+  --placeholder: #8C8C8C;
+  --border: rgba(255, 255, 255, 0.16);
+  --border-strong: rgba(255, 255, 255, 0.32);
+  --hover: rgba(255, 255, 255, 0.10);
+  /* Brand green is 3.9:1 on black and brand red 3.7:1 — both fail as text, so
+     the rail carries lightened versions rather than the raw values. */
+  --accent-text: #45D188;
+  --accent-soft: rgba(0, 122, 61, 0.30);
+  --accent-line: rgba(0, 122, 61, 0.62);
+  --mark: #FF6B7C;
   background: var(--sidebar);
   /* Inheritance carries the *computed* colour, so re-declaring --text-primary
      above does nothing for children that never name a colour of their own.
@@ -302,19 +330,20 @@ textarea { resize: vertical; line-height: 1.5; }
      input and ghost button nested below follows it. The phone breakpoint
      hands these back to the light values, because there the rail *is* the
      page rather than a rail beside one. */
-  --surface: rgba(255, 255, 255, 0.07);
-  --surface-subtle: rgba(255, 255, 255, 0.03);
-  --field-bg: rgba(255, 255, 255, 0.06);
-  --hover: rgba(255, 255, 255, 0.08);
-  --text-primary: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --placeholder: #94A3B8;
-  --border: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(255, 255, 255, 0.26);
-  --track: rgba(255, 255, 255, 0.14);
-  --accent-text: #93C5FD;
-  --accent-soft: rgba(59, 130, 246, 0.18);
-  --accent-line: rgba(59, 130, 246, 0.45);
+  --surface: rgba(255, 255, 255, 0.10);
+  --surface-subtle: rgba(255, 255, 255, 0.05);
+  --field-bg: rgba(255, 255, 255, 0.08);
+  --hover: rgba(255, 255, 255, 0.10);
+  --text-primary: #FFFFFF;
+  --text-secondary: #A6A6A6;
+  --placeholder: #8C8C8C;
+  --border: rgba(255, 255, 255, 0.16);
+  --border-strong: rgba(255, 255, 255, 0.32);
+  --track: rgba(255, 255, 255, 0.18);
+  --accent-text: #45D188;
+  --accent-soft: rgba(0, 122, 61, 0.30);
+  --accent-line: rgba(0, 122, 61, 0.62);
+  --mark: #FF6B7C;
   background: var(--sidebar);
   color: var(--text-primary);
   border-right: 1px solid var(--border);
@@ -386,15 +415,15 @@ textarea { resize: vertical; line-height: 1.5; }
 /* Waiting on the coach, not on the payer — so it breathes rather than pulses:
    an alarm is the wrong note for something already dealt with. */
 .chip-pending_verification {
-  background: var(--warning-soft); color: var(--warning-text); border-color: var(--warning-line);
+  background: #000000; color: #FFFFFF; border-color: #000000;
 }
 .chip-pending_verification::before { animation: chip-breathe 1.8s ease-in-out infinite; }
 @keyframes chip-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
 /* Only overdue pulses — if everything moved, nothing would stand out. */
 @keyframes chip-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-  50%      { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.22); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(206, 17, 38, 0); }
+  50%      { box-shadow: 0 0 0 4px rgba(206, 17, 38, 0.22); }
 }
 
 
@@ -521,11 +550,11 @@ textarea { resize: vertical; line-height: 1.5; }
 .chip-action:hover { color: var(--text-primary); background: var(--hover); border-color: var(--border-strong); }
 /* Both brand hues are pale enough to fail on white, so the label takes a
    darkened tone of each and the brand colour survives in the border. */
-.chip-wa { color: #128C3F; border-color: #86E3AB; }
-.chip-wa:hover { background: #E7F9EF; color: #128C3F; }
+.chip-wa { color: var(--accent-text); border-color: var(--accent-line); }
+.chip-wa:hover { background: var(--accent-soft); color: var(--accent-text); }
 
-.chip-tg { color: #1B7FB0; border-color: #A9D8F0; }
-.chip-tg:hover:not(:disabled) { background: #E8F4FB; color: #1B7FB0; }
+.chip-tg { color: var(--text-primary); border-color: var(--border-strong); }
+.chip-tg:hover:not(:disabled) { background: var(--hover); color: var(--text-primary); }
 .chip-tg:disabled { opacity: 0.65; cursor: default; }
 .chip-tg.is-sent { color: var(--success-text); border-color: var(--success-line); background: var(--success-soft); }
 
@@ -535,7 +564,7 @@ textarea { resize: vertical; line-height: 1.5; }
   border: 1px solid var(--accent-line); border-radius: 999px;
   color: var(--accent-text); font: 500 12px var(--font-body); cursor: pointer; transition: background var(--ease);
 }
-.suggestion:hover { background: #DBEAFE; }
+.suggestion:hover { background: #D3E9DD; }
 
 
 .composer {
@@ -557,7 +586,7 @@ textarea { resize: vertical; line-height: 1.5; }
   width: 14px; height: 14px; border-radius: 50%;
   /* Rides on both a blue button and a white card, so the track is derived
      from whatever colour the spinner inherits rather than fixed. */
-  border: 2px solid rgba(148, 163, 184, 0.35);
+  border: 2px solid rgba(0, 0, 0, 0.28);
   border: 2px solid color-mix(in srgb, currentColor 28%, transparent);
   border-top-color: currentColor;
   animation: spin 0.7s linear infinite;
@@ -591,7 +620,7 @@ textarea { resize: vertical; line-height: 1.5; }
   background: var(--surface); color: var(--text-primary);
   box-shadow: var(--shadow-dialog);
 }
-.dialog::backdrop { background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(3px); }
+.dialog::backdrop { background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(3px); }
 .dialog form { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
 .dialog-title { font-size: 20px; font-weight: 700; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -605,8 +634,8 @@ textarea { resize: vertical; line-height: 1.5; }
   z-index: 100; max-width: calc(100vw - 32px);
   padding: 12px 20px;
   background: var(--sidebar); border: 0; border-radius: var(--radius-pill);
-  color: #F8FAFC; font-size: 14px; font-weight: 600;
-  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.22);
+  color: #FFFFFF; font-size: 14px; font-weight: 600;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
   animation: toast-up 0.22s ease;
 }
 .toast.is-error { background: var(--danger-text); }
@@ -693,13 +722,13 @@ textarea { resize: vertical; line-height: 1.5; }
 .pill-paid    { background: var(--success-soft); color: var(--success-text); }
 .pill-unpaid  { background: var(--warning-soft); color: var(--warning-text); }
 .pill-overdue { background: var(--danger-soft);  color: var(--danger-text); }
-.pill-note    { background: #E2E8F0;             color: #475569; }
-.pill-pending_verification { background: var(--warning-soft); color: var(--warning-text); }
+.pill-note    { background: #EDEDED;             color: #4A4A4A; }
+.pill-pending_verification { background: #000000; color: #FFFFFF; }
 
 /* A saved one-off keeps its student's status colour and is set apart by a
    darker rim. An inset shadow, not a border — a border would make these pills
    two pixels taller than the recurring ones sitting beside them. */
-.cal-pill.is-event { box-shadow: inset 0 0 0 1.5px rgba(15, 23, 42, 0.24); }
+.cal-pill.is-event { box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.24); }
 
 .cal-more { padding-left: 3px; color: var(--text-secondary); font-size: 10.5px; line-height: 1.4; }
 
@@ -829,7 +858,7 @@ textarea { resize: vertical; line-height: 1.5; }
 .day-row.is-cancelled .day-name { text-decoration: line-through; }
 
 .chip-cancelled {
-  background: #F1F5F9; color: #475569;
+  background: #F0F0F0; color: #4A4A4A;
   border-color: var(--border-strong);
 }
 .edited-badge { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
@@ -947,18 +976,19 @@ textarea { resize: vertical; line-height: 1.5; }
      tokens back to the light page it has become. */
   .sidebar {
     --surface: #FFFFFF;
-    --surface-subtle: #F8FAFC;
+    --surface-subtle: #F6F6F6;
     --field-bg: #FFFFFF;
-    --hover: #F1F5F9;
-    --text-primary: #0F172A;
-    --text-secondary: #64748B;
-    --placeholder: #94A3B8;
-    --border: #E2E8F0;
-    --border-strong: #CBD5E1;
-    --track: #E2E8F0;
-    --accent-text: #2563EB;
-    --accent-soft: #EFF6FF;
-    --accent-line: #BFDBFE;
+    --hover: #F0F0F0;
+    --text-primary: #000000;
+    --text-secondary: #5C5C5C;
+    --placeholder: #8C8C8C;
+    --border: #E0E0E0;
+    --border-strong: #BFBFBF;
+    --track: #E0E0E0;
+    --accent-text: #007A3D;
+    --accent-soft: #E6F3EC;
+    --accent-line: #A9D4BE;
+    --mark: #CE1126;
     background: var(--bg);
     color: var(--text-primary);
     border-right: 0;
@@ -1107,7 +1137,7 @@ textarea { resize: vertical; line-height: 1.5; }
 .switch-track::after {
   content: ''; position: absolute; top: 3px; left: 3px;
   width: 16px; height: 16px; border-radius: 50%;
-  background: #FFFFFF; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.28);
+  background: #FFFFFF; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
   transition: transform var(--ease);
 }
 .switch input:checked + .switch-track { background: var(--accent); }
@@ -1243,10 +1273,10 @@ textarea { resize: vertical; line-height: 1.5; }
   padding: 3px 10px; border-radius: 999px;
   font-size: 11px; font-weight: 600; letter-spacing: 0.03em; white-space: nowrap;
 }
-.plan-free    { background: #F1F5F9;            color: #475569; }
+.plan-free    { background: #F0F0F0;            color: #4A4A4A; }
 .plan-trial   { background: var(--warning-soft); color: var(--warning-text); }
 .plan-monthly { background: var(--accent-soft);  color: var(--accent-text); }
-.plan-annual  { background: #DBEAFE;             color: var(--accent-text); }
+.plan-annual  { background: #D3E9DD;             color: var(--accent-text); }
 
 .banner {
   margin: 0 0 16px; padding: 11px 14px;
