@@ -337,27 +337,18 @@
 
         <!-- AI CHAT -->
         <section id="tab-chat" class="tab-panel" role="tabpanel" hidden>
+          <!-- Title, who it is drafting for, and the day's quota all on one
+               line: three short facts that were costing three stacked rows of
+               the height the conversation itself wants. -->
           <div class="chat-head">
-            <div>
-              <h2 id="chat-title" class="chat-title">AI Reminder Assistant</h2>
-              <p id="chat-subtitle" class="chat-sub"></p>
+            <h2 id="chat-title" class="chat-title">AI Reminder Assistant</h2>
+            <p id="chat-subtitle" class="chat-sub"></p>
+            <span class="spacer"></span>
+            <div class="quota">
+              <span id="quota-text" class="quota-text">— / 20 messages today</span>
+              <span class="quota-track"><span id="quota-fill" class="quota-fill"></span></span>
             </div>
             <button id="new-thread-btn" class="btn btn-ghost btn-sm" type="button" hidden>New thread</button>
-          </div>
-
-          <!-- The first message a parent ever gets from the bot is the one most
-               worth getting right, and the hardest to start from a blank box. -->
-          <div class="chat-quick">
-            <button id="draft-intro-btn" class="btn btn-primary-outline btn-sm" type="button">
-              📝 Draft Bot Introduction
-            </button>
-          </div>
-
-          <div class="quota">
-            <div class="quota-row">
-              <span id="quota-text" class="quota-text">— / 20 messages today</span>
-            </div>
-            <div class="quota-track"><div id="quota-fill" class="quota-fill"></div></div>
           </div>
 
           <div id="messages" class="messages" aria-live="polite"></div>

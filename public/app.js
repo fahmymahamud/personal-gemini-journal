@@ -945,20 +945,41 @@ function renderQuota() {
   fill.classList.toggle('is-full', pct >= 100);
 }
 
+/**
+ * The starters offered above the composer, while a thread is still empty.
+ *
+ * Most send their own label — what the coach asks for and what they tapped are
+ * the same words. The bot introduction is the exception: it is the first
+ * message a family ever gets, it has to name them and the student, and it is
+ * the hardest one to start from a blank box, so it carries a written-out
+ * prompt instead.
+ */
 const SUGGESTIONS = [
-  'Draft a payment reminder',
-  'Write a lesson reminder',
-  'Make it more polite',
+  {
+    label: '📝 Draft Bot Introduction',
+    needsStudent: true,
+    prompt: (s) => 'Write a friendly introduction message for my Telegram bot to send to '
+      + `${s.payerName || s.name} for the first time. The bot will be sending lesson and `
+      + `payment reminders for ${s.name}. Keep it short, warm, and professional. Include `
+      + 'that they can tap buttons to confirm payment or send receipts.',
+  },
+  { label: 'Draft a payment reminder' },
+  { label: 'Write a lesson reminder' },
+  { label: 'Make it more polite' },
 ];
 
 function renderSuggestions() {
   const items = currentThread().length ? [] : SUGGESTIONS;
-  $('#suggestions').replaceChildren(...items.map((text) => {
+  $('#suggestions').replaceChildren(...items.map((item) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'suggestion';
-    btn.textContent = text;
-    btn.addEventListener('click', () => send(text));
+    btn.textContent = item.label;
+    btn.addEventListener('click', () => {
+      const s = selectedStudent();
+      if (item.needsStudent && !s) return toast('Pick a client first', { error: true });
+      send(item.prompt ? item.prompt(s) : item.label);
+    });
     return btn;
   }));
 }
@@ -2174,21 +2195,6 @@ const autoGrow = () => {
 $('#chat-input').addEventListener('input', autoGrow);
 $('#chat-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send($('#chat-input').value); }
-});
-
-/**
- * The bot's first message to a family, drafted rather than written from
- * scratch. It is the one message that has to explain what this thing is and
- * why it is now in their chat, and it is the hardest one to start cold.
- */
-$('#draft-intro-btn').addEventListener('click', () => {
-  const s = selectedStudent();
-  if (!s) return toast('Pick a client first', { error: true });
-
-  send(`Write a friendly introduction message for my Telegram bot to send to `
-    + `${s.payerName || s.name} for the first time. The bot will be sending lesson and `
-    + `payment reminders for ${s.name}. Keep it short, warm, and professional. Include `
-    + 'that they can tap buttons to confirm payment or send receipts.');
 });
 
 $('#new-thread-btn').addEventListener('click', () => {

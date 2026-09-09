@@ -507,18 +507,23 @@ textarea { resize: vertical; line-height: 1.5; }
 .overview-foot { display: flex; gap: 10px; align-items: center; padding-top: 16px; border-top: 1px solid var(--border); }
 
 /* ── chat ── */
-.chat-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
-  padding: 24px 24px 16px; flex: 0 0 auto; }
+.chat-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
+  padding: 16px 24px 12px; flex: 0 0 auto; }
 .chat-title { font-size: 18px; font-weight: 600; }
-.chat-sub { margin: 3px 0 0; color: var(--text-secondary); font-size: 12px; }
+.chat-sub { margin: 0; color: var(--text-secondary); font-size: 12px; }
+/* Only once there is a client to name — an empty subtitle must not leave a
+   separator hanging off the title. */
+.chat-sub:not(:empty)::before { content: '·'; margin-right: 10px; }
 
-.chat-quick { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 24px 14px; flex: 0 0 auto; }
-
-.quota { padding: 0 24px 16px; flex: 0 0 auto; }
-.quota-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
-.quota-text { color: var(--text-secondary); font-size: 12px; }
-.quota-track { height: 4px; background: var(--track); border-radius: 999px; overflow: hidden; }
-.quota-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 999px; transition: width 0.3s ease, background var(--ease); }
+.quota { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.quota-text { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
+/* Short and inline now that it rides in the header: enough to read the day's
+   budget at a glance, not enough to cost a row of its own. */
+.quota-track {
+  display: block; width: 56px; height: 4px; flex: 0 0 auto;
+  background: var(--track); border-radius: 999px; overflow: hidden;
+}
+.quota-fill { display: block; height: 100%; width: 0%; background: var(--accent); border-radius: 999px; transition: width 0.3s ease, background var(--ease); }
 .quota-fill.is-low { background: var(--warning); }
 .quota-fill.is-full { background: var(--danger); }
 
@@ -1002,6 +1007,11 @@ textarea { resize: vertical; line-height: 1.5; }
   .info-grid { grid-template-columns: 1fr; }
   .hero-actions { flex-direction: column; }
   .msg { max-width: 88%; }
+  /* Four items will not sit on one line at phone width. Dropping the spacer
+     lets them flow and wrap by their own size instead of the quota being
+     shoved to the far edge and taking a row of its own. */
+  .chat-head { padding: 14px 16px 10px; gap: 4px 10px; }
+  .chat-head .spacer { display: none; }
 
   /* Anything tappable clears 44px, the smallest target a thumb reliably hits. */
   .btn, .icon-btn, .chip-action, .suggestion, .type-btn,
