@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0A1420">
+<meta name="theme-color" content="#1E293B">
 <title>RemindClient — Never chase a payment again</title>
 <meta name="description" content="Payment and lesson reminder app for freelance tutors, coaches and instructors">
 <meta property="og:title" content="RemindClient by ShiftedTech">
 <meta property="og:description" content="Never chase a payment again">
 <meta property="og:type" content="website">
 <meta property="og:image" content="/icons/icon-512.png">
-<meta name="og:color" content="#0A1420">
+<meta name="og:color" content="#1E293B">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="RemindClient by ShiftedTech">
 <meta name="twitter:description" content="Never chase a payment again">
@@ -22,7 +22,6 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="RemindClient">
-<rect width='32' height='32' rx='7' fill='%230A1420'/><path d='M9 22V10h6a4 4 0 0 1 0 8h-2l4 4' stroke='%232EC4B6' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png">
@@ -55,7 +54,7 @@
         <span class="field-label">Password</span>
         <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" minlength="6" required>
       </label>
-      <button class="btn btn-teal btn-block" type="submit" data-submit>Sign in</button>
+      <button class="btn btn-primary btn-block" type="submit" data-submit>Sign in</button>
     </form>
 
     <p class="switch-mode">
@@ -95,7 +94,7 @@
       <div class="side-top">
         <div class="side-head">
           <h2 class="side-title">My Clients</h2>
-          <button id="add-student-btn" class="btn btn-teal btn-sm" type="button">Add Client</button>
+          <button id="add-student-btn" class="btn btn-primary btn-sm" type="button">Add Client</button>
         </div>
 
         <div class="search-wrap">
@@ -116,12 +115,12 @@
         <div id="students-empty" class="empty" hidden>
           <div class="empty-icon" aria-hidden="true">👨‍🏫</div>
           <p class="empty-text">Add your first client to get started</p>
-          <button class="btn btn-teal" type="button" data-add-student>Add Client</button>
+          <button class="btn btn-primary" type="button" data-add-student>Add Client</button>
         </div>
 
         <div id="students-error" class="retry-state" hidden>
           <p class="retry-text">Couldn't load clients — tap to retry</p>
-          <button id="students-retry" class="btn btn-teal" type="button">Retry</button>
+          <button id="students-retry" class="btn btn-primary" type="button">Retry</button>
         </div>
       </div>
 
@@ -140,14 +139,14 @@
       <div id="no-selection" class="placeholder">
         <div class="placeholder-art" aria-hidden="true">
           <svg viewBox="0 0 120 90" width="128" height="96" fill="none">
-            <rect x="10" y="16" width="62" height="9" rx="4.5" fill="#101E2E"/>
-            <rect x="10" y="33" width="46" height="9" rx="4.5" fill="#101E2E"/>
-            <rect x="10" y="50" width="54" height="9" rx="4.5" fill="#101E2E"/>
-            <rect x="10" y="67" width="34" height="9" rx="4.5" fill="#101E2E"/>
-            <rect x="82" y="24" width="30" height="44" rx="8" fill="#101E2E" stroke="#2EC4B6" stroke-width="1.5"/>
-            <circle cx="97" cy="40" r="4" fill="#2EC4B6"/>
-            <rect x="89" y="49" width="16" height="3" rx="1.5" fill="#2EC4B6" opacity=".55"/>
-            <rect x="89" y="56" width="11" height="3" rx="1.5" fill="#2EC4B6" opacity=".3"/>
+            <rect x="10" y="16" width="62" height="9" rx="4.5" fill="#E2E8F0"/>
+            <rect x="10" y="33" width="46" height="9" rx="4.5" fill="#E2E8F0"/>
+            <rect x="10" y="50" width="54" height="9" rx="4.5" fill="#E2E8F0"/>
+            <rect x="10" y="67" width="34" height="9" rx="4.5" fill="#E2E8F0"/>
+            <rect x="82" y="24" width="30" height="44" rx="8" fill="#EFF6FF" stroke="#3B82F6" stroke-width="1.5"/>
+            <circle cx="97" cy="40" r="4" fill="#3B82F6"/>
+            <rect x="89" y="49" width="16" height="3" rx="1.5" fill="#3B82F6" opacity=".55"/>
+            <rect x="89" y="56" width="11" height="3" rx="1.5" fill="#3B82F6" opacity=".3"/>
           </svg>
         </div>
         <p class="placeholder-text">
@@ -176,7 +175,7 @@
           </div>
 
           <div class="hero-actions">
-            <button id="mark-paid-btn" class="btn btn-teal" type="button">Mark as Paid</button>
+            <button id="mark-paid-btn" class="btn btn-primary" type="button">Mark as Paid</button>
           </div>
 
           <div class="info-grid">
@@ -191,8 +190,8 @@
 
             <!-- not yet linked -->
             <div id="connect-actions" class="connect-actions">
-              <a id="tg-invite-btn" class="btn btn-teal" target="_blank" rel="noopener">💬 Send invite via WhatsApp</a>
-              <button id="tg-copy-btn" class="btn btn-teal-outline" type="button">📋 Copy Link</button>
+              <a id="tg-invite-btn" class="btn btn-primary" target="_blank" rel="noopener">💬 Send invite via WhatsApp</a>
+              <button id="tg-copy-btn" class="btn btn-primary-outline" type="button">📋 Copy Link</button>
             </div>
             <p id="connect-nophone" class="connect-warn" hidden>
               No payer phone on file — add one to send the invite directly, or copy the link and send it yourself.
@@ -251,7 +250,7 @@
 
           <form id="chat-form" class="composer">
             <textarea id="chat-input" rows="1" placeholder="Ask Gemini to draft or refine a message…" aria-label="Message to Gemini"></textarea>
-            <button id="chat-send" class="btn btn-teal btn-send" type="submit" aria-label="Send">
+            <button id="chat-send" class="btn btn-primary btn-send" type="submit" aria-label="Send">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </button>
           </form>
@@ -295,7 +294,7 @@
           <div id="cal-empty" class="empty" hidden>
             <div class="empty-icon" aria-hidden="true">📚</div>
             <p class="empty-text">Add clients to see their lessons here</p>
-            <button class="btn btn-teal" type="button" data-add-student>Add Client</button>
+            <button class="btn btn-primary" type="button" data-add-student>Add Client</button>
           </div>
         </div>
       </div>
@@ -365,7 +364,7 @@
     <div class="dialog-foot">
       <span class="spacer"></span>
       <button class="btn btn-ghost" type="button" data-close>Cancel</button>
-      <button class="btn btn-teal" type="submit">Save</button>
+      <button class="btn btn-primary" type="submit">Save</button>
     </div>
   </form>
 </dialog>
@@ -376,7 +375,7 @@
     <header class="day-head">
       <h2 id="day-title" class="day-title"></h2>
       <div class="day-head-actions">
-        <button id="day-add" class="btn btn-teal btn-sm" type="button">Add Event</button>
+        <button id="day-add" class="btn btn-primary btn-sm" type="button">Add Event</button>
         <button id="day-close" class="icon-btn" type="button" aria-label="Close">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
@@ -389,7 +388,7 @@
       <div id="day-empty" class="empty" hidden>
         <div class="empty-icon" aria-hidden="true">📅</div>
         <p class="empty-text">No lessons on this day</p>
-        <button id="day-add-empty" class="btn btn-teal" type="button">Add Event</button>
+        <button id="day-add-empty" class="btn btn-primary" type="button">Add Event</button>
       </div>
     </div>
   </div>
@@ -437,7 +436,7 @@
       <button id="lesson-remove" class="btn btn-danger btn-sm" type="button">Remove from Calendar</button>
       <span class="spacer"></span>
       <button class="btn btn-ghost" type="button" data-close-lesson>Cancel</button>
-      <button id="lesson-save" class="btn btn-teal" type="submit">Save</button>
+      <button id="lesson-save" class="btn btn-primary" type="submit">Save</button>
     </div>
   </form>
 </dialog>
@@ -459,7 +458,7 @@
     <div class="dialog-foot">
       <button id="detail-delete" class="btn btn-danger btn-sm" type="button">Delete</button>
       <span class="spacer"></span>
-      <button id="detail-edit" class="btn btn-teal" type="button">Edit</button>
+      <button id="detail-edit" class="btn btn-primary" type="button">Edit</button>
     </div>
   </div>
 </dialog>
@@ -530,7 +529,7 @@
     <div class="dialog-foot">
       <span class="spacer"></span>
       <button class="btn btn-ghost" type="button" data-close-event>Cancel</button>
-      <button id="event-save" class="btn btn-teal" type="submit">Save</button>
+      <button id="event-save" class="btn btn-primary" type="submit">Save</button>
     </div>
   </form>
 </dialog>
@@ -542,10 +541,10 @@
     <p class="dialog-sub">Parents get automatic reminders before every lesson — no app needed.</p>
 
     <div class="sub-actions">
-      <a id="sub-ios" class="btn btn-teal btn-block" rel="noopener">📅 Subscribe on iPhone</a>
+      <a id="sub-ios" class="btn btn-primary btn-block" rel="noopener">📅 Subscribe on iPhone</a>
       <p class="sub-help">Safari opens → tap Subscribe → done</p>
 
-      <a id="sub-android" class="btn btn-teal-outline btn-block" target="_blank" rel="noopener">📅 Subscribe on Android</a>
+      <a id="sub-android" class="btn btn-primary-outline btn-block" target="_blank" rel="noopener">📅 Subscribe on Android</a>
       <p class="sub-help">Google Calendar opens → tap Add → done</p>
 
       <button id="sub-copy" class="btn btn-ghost btn-sm btn-block" type="button">📋 Copy Link (advanced)</button>

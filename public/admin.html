@@ -3,18 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0A1420">
+<meta name="theme-color" content="#1E293B">
 <title>RemindClient — Admin</title>
 <meta name="description" content="Payment and lesson reminder app for freelance tutors, coaches and instructors">
 <meta name="robots" content="noindex">
 <meta property="og:title" content="RemindClient by ShiftedTech">
 <meta property="og:description" content="Never chase a payment again">
-<meta name="og:color" content="#0A1420">
+<meta name="og:color" content="#1E293B">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./styles.css">
-<rect width='32' height='32' rx='7' fill='%230A1420'/><path d='M9 22V10h6a4 4 0 0 1 0 8h-2l4 4' stroke='%232EC4B6' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png">
@@ -43,7 +42,7 @@
       <h2 class="admin-state-title">Access Denied</h2>
       <p id="denied-detail">This account does not have administrator access.</p>
       <div class="admin-state-actions">
-        <button id="denied-signout" class="btn btn-teal" type="button">Sign out</button>
+        <button id="denied-signout" class="btn btn-primary" type="button">Sign out</button>
         <a class="btn btn-ghost" href="/">Back to App</a>
       </div>
     </div>
@@ -53,7 +52,7 @@
       <p id="error-detail"></p>
       <p class="admin-state-hint">You do have admin access — this is a server-side failure, not a permissions problem.</p>
       <div class="admin-state-actions">
-        <button id="error-retry" class="btn btn-teal" type="button">Retry</button>
+        <button id="error-retry" class="btn btn-primary" type="button">Retry</button>
         <a class="btn btn-ghost" href="/">Back to App</a>
       </div>
     </div>
@@ -61,10 +60,10 @@
     <div id="state-ok" hidden>
 
       <section class="stat-row">
-        <div class="stat"><span class="stat-label">Total Coaches</span><span id="stat-coaches" class="stat-value is-teal-num">—</span></div>
-        <div class="stat"><span class="stat-label">Total Clients</span><span id="stat-students" class="stat-value is-teal-num">—</span></div>
-        <div class="stat"><span class="stat-label">AI Messages Today</span><span id="stat-messages" class="stat-value is-teal-num">—</span></div>
-        <div class="stat"><span class="stat-label">Active This Week</span><span id="stat-active" class="stat-value is-teal-num">—</span></div>
+        <div class="stat"><span class="stat-label">Total Coaches</span><span id="stat-coaches" class="stat-value is-accent-num">—</span></div>
+        <div class="stat"><span class="stat-label">Total Clients</span><span id="stat-students" class="stat-value is-accent-num">—</span></div>
+        <div class="stat"><span class="stat-label">AI Messages Today</span><span id="stat-messages" class="stat-value is-accent-num">—</span></div>
+        <div class="stat"><span class="stat-label">Active This Week</span><span id="stat-active" class="stat-value is-accent-num">—</span></div>
       </section>
 
       <section class="admin-card">
@@ -87,7 +86,7 @@
       <section class="admin-card">
         <div class="card-head">
           <h2 class="admin-h2">Access Control</h2>
-          <button id="add-coach-btn" class="btn btn-teal btn-sm" type="button">Add Coach</button>
+          <button id="add-coach-btn" class="btn btn-primary btn-sm" type="button">Add Coach</button>
         </div>
 
         <p id="enforcement-banner" class="banner"></p>
@@ -125,7 +124,7 @@
     <div class="dialog-foot">
       <span class="spacer"></span>
       <button class="btn btn-ghost" type="button" data-close>Cancel</button>
-      <button class="btn btn-teal" type="submit">Save</button>
+      <button class="btn btn-primary" type="submit">Save</button>
     </div>
   </form>
 </dialog>
