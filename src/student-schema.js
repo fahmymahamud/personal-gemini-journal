@@ -1,4 +1,7 @@
-export const PAYMENT_STATUSES = ['paid', 'unpaid', 'overdue'];
+// pending_verification is set by the server when a parent declares payment
+// over Telegram. It is listed here so that saving a student who is mid-review
+// round-trips the status instead of silently dropping them back to unpaid.
+export const PAYMENT_STATUSES = ['paid', 'unpaid', 'overdue', 'pending_verification'];
 
 // Canonical stored form is the short code. Students created before lessons
 // could span several days hold a single full-name `lessonDay` instead, so

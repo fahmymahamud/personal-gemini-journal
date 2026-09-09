@@ -129,7 +129,7 @@ onAuthStateChanged(auth, async (user) => {
   state.loadingStudents = true;
   setView('calendar');
 
-  await Promise.all([loadStudents(), loadEvents(), loadUsage(), revealAdminLink()]);
+  await Promise.all([loadStudents(), loadEvents(), loadUsage(), revealAdminLink(), loadPending()]);
   renderCalendar();
 });
 
@@ -217,7 +217,7 @@ function renderStudents() {
   setStudentsState(state.students.length ? 'list' : 'empty');
 }
 
-const STATUS_LABEL = { paid: 'Paid', unpaid: 'Due', overdue: 'Overdue' };
+const STATUS_LABEL = { paid: 'Paid', unpaid: 'Due', overdue: 'Overdue', pending_verification: 'Pending' };
 
 function statusChip(student, large = false) {
   const status = student.paymentStatus || 'unpaid';
@@ -501,6 +501,7 @@ function renderOverview(s) {
 
   renderReminders(s);
   renderConnect(s);
+  renderVerification(s);
   showOvError('');
 
   const status = s.paymentStatus || 'unpaid';
@@ -1971,6 +1972,255 @@ $('#delete-student-btn').addEventListener('click', async () => {
     toastError(err, "Couldn't delete the client — try again");
   } finally {
     btn.disabled = false;
+  }
+});
+
+/* ════════════════ payment verification ════════════════
+
+   A parent declares payment from inside Telegram; the coach approves it here
+   or from their own chat. Both paths call the same two endpoints, so the
+   record cannot say one thing in the app and another in the bot. */
+
+const PENDING = 'pending_verification';
+const isPending = (s) => s.paymentStatus === PENDING;
+
+function sinceText(iso) {
+  const then = Date.parse(iso || '');
+  if (Number.isNaN(then)) return '';
+  const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
+const proofLine = (s) => (s.paymentProof?.type === 'screenshot'
+  ? 'Screenshot sent via Telegram'
+  : 'Self-declared via Telegram');
+
+function claimLine(s) {
+  const who = s.payerName || s.name || 'The payer';
+  return s.paymentProof?.type === 'screenshot'
+    ? `${who} sent a payment screenshot.`
+    : `${who} says they have paid.`;
+}
+
+function renderVerification(s) {
+  const block = $('#verify-block');
+  block.hidden = !isPending(s);
+  if (block.hidden) return;
+
+  $('#verify-claim').textContent = claimLine(s);
+  $('#verify-meta').textContent =
+    `${proofLine(s)} · ${sinceText(s.paymentProof?.submittedAt)}`;
+  $('#verify-view').hidden = s.paymentProof?.type !== 'screenshot';
+}
+
+/** Confirm/reject for the student on screen. */
+async function settleVerification(studentId, action) {
+  const buttons = [$('#verify-confirm'), $('#verify-reject'), $('#verify-view')];
+  for (const b of buttons) b.disabled = true;
+  try {
+    await api(`/api/students/${studentId}/payment/${action}`, { method: 'POST' });
+    toast(action === 'confirm' ? 'Payment confirmed' : 'Payment rejected');
+    await Promise.all([loadStudents(), loadPending()]);
+  } catch (err) {
+    toastError(err, `Couldn't ${action} — try again`);
+  } finally {
+    for (const b of buttons) b.disabled = false;
+  }
+}
+
+$('#verify-confirm').addEventListener('click', () => {
+  const s = selectedStudent();
+  if (s) settleVerification(s.id, 'confirm');
+});
+
+$('#verify-reject').addEventListener('click', () => {
+  const s = selectedStudent();
+  if (!s) return;
+  if (!confirm(`Reject this payment? ${s.name} goes back to unpaid and the payer is told.`)) return;
+  settleVerification(s.id, 'reject');
+});
+
+$('#verify-view').addEventListener('click', () => {
+  const s = selectedStudent();
+  if (s) openReceipt(s.id);
+});
+
+/* ── receipt lightbox ──
+   The bucket is private and the endpoint needs a bearer token, so the image
+   cannot simply be an <img src>. It is fetched, turned into an object URL, and
+   revoked on close so the blob does not outlive the dialog. */
+
+const receiptDialog = $('#receipt-dialog');
+let receiptUrl = null;
+
+function clearReceipt() {
+  if (receiptUrl) URL.revokeObjectURL(receiptUrl);
+  receiptUrl = null;
+  $('#receipt-img').removeAttribute('src');
+}
+
+async function openReceipt(studentId) {
+  $('#receipt-error').hidden = true;
+  clearReceipt();
+  receiptDialog.showModal();
+  try {
+    const token = await auth.currentUser.getIdToken();
+    const res = await fetch(`/api/students/${studentId}/receipt`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Receipt unavailable');
+    receiptUrl = URL.createObjectURL(await res.blob());
+    $('#receipt-img').src = receiptUrl;
+  } catch (err) {
+    const el = $('#receipt-error');
+    el.textContent = err.message;
+    el.hidden = false;
+  }
+}
+
+$('#receipt-close').addEventListener('click', () => receiptDialog.close());
+receiptDialog.addEventListener('close', clearReceipt);
+
+/* ── navbar badge + panel ── */
+
+let pending = [];
+
+async function loadPending() {
+  try {
+    const { students } = await api('/api/students/pending-verification');
+    pending = students || [];
+  } catch {
+    // A failed poll must not blank a list the coach is reading, and it is not
+    // worth a toast: the next poll is 60 seconds away.
+    return;
+  }
+  renderPending();
+}
+
+function renderPending() {
+  const count = pending.length;
+  $('#verify-btn').hidden = count === 0;
+  $('#verify-count').textContent = String(count);
+  $('#verify-panel-title').textContent =
+    `Payment verifications (${count} pending)`;
+  if (!count) $('#verify-panel').hidden = true;
+
+  const list = $('#verify-list');
+  list.textContent = '';
+  for (const s of pending) {
+    const li = document.createElement('li');
+    li.className = 'verify-row';
+
+    const head = document.createElement('div');
+    head.className = 'verify-row-head';
+    const who = document.createElement('span');
+    who.className = 'verify-who';
+    who.textContent = `${s.payerName || '—'} — ${s.name}`;
+    const fee = document.createElement('span');
+    fee.className = 'verify-fee';
+    fee.textContent = money(s);
+    head.append(who, fee);
+
+    const meta = document.createElement('p');
+    meta.className = 'verify-meta';
+    meta.textContent = `${proofLine(s)} · ${sinceText(s.paymentProof?.submittedAt)}`;
+
+    const actions = document.createElement('div');
+    actions.className = 'verify-row-actions';
+    if (s.paymentProof?.type === 'screenshot') {
+      const view = document.createElement('button');
+      view.type = 'button';
+      view.className = 'btn btn-ghost btn-sm';
+      view.textContent = '📸 View Receipt';
+      view.addEventListener('click', () => openReceipt(s.id));
+      actions.append(view);
+    }
+    for (const [label, action, cls] of [
+      ['✅ Confirm', 'confirm', 'btn-primary'], ['❌ Reject', 'reject', 'btn-danger'],
+    ]) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `btn ${cls} btn-sm`;
+      b.textContent = label;
+      b.addEventListener('click', async () => {
+        if (action === 'reject'
+          && !confirm(`Reject this payment? ${s.name} goes back to unpaid and the payer is told.`)) return;
+        await settleVerification(s.id, action);
+      });
+      actions.append(b);
+    }
+
+    // Jumping to the student is the useful default click: the panel is a
+    // summary, the Overview is where the rest of the record lives.
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'linkish verify-open';
+    open.textContent = 'Open student';
+    open.addEventListener('click', () => {
+      $('#verify-panel').hidden = true;
+      focusStudent(s.id);
+    });
+
+    li.append(head, meta, actions, open);
+    list.append(li);
+  }
+}
+
+$('#verify-btn').addEventListener('click', () => {
+  const panel = $('#verify-panel');
+  panel.hidden = !panel.hidden;
+});
+$('#verify-panel-close').addEventListener('click', () => { $('#verify-panel').hidden = true; });
+
+// Declarations arrive from Telegram while the app sits open, so the badge has
+// to find them on its own. A minute is slow enough to be free and fast enough
+// that a coach watching for a payment sees it land.
+setInterval(() => { if (auth.currentUser) loadPending(); }, 60_000);
+
+/* ════════════════ settings: the coach's own Telegram ════════════════ */
+
+const settingsDialog = $('#settings-dialog');
+
+async function renderCoachTelegram() {
+  let connected = false;
+  try {
+    ({ connected } = await api('/api/telegram/coach'));
+  } catch {
+    connected = false;
+  }
+  $('#coach-tg-on').hidden = !connected;
+  $('#coach-tg-off').hidden = connected;
+
+  if (!connected) {
+    try {
+      const { copyUrl } = await api('/api/telegram/coach/link', { method: 'POST' });
+      $('#coach-tg-link').href = /^https?:\/\//.test(copyUrl) ? copyUrl : `https://${copyUrl}`;
+    } catch {
+      $('#coach-tg-link').removeAttribute('href');
+    }
+  }
+}
+
+$('#settings-btn').addEventListener('click', async () => {
+  settingsDialog.showModal();
+  await renderCoachTelegram();
+});
+settingsDialog.querySelector('[data-close-settings]')
+  .addEventListener('click', () => settingsDialog.close());
+
+$('#coach-tg-disconnect').addEventListener('click', async () => {
+  if (!confirm('Stop receiving payment notifications on Telegram?')) return;
+  try {
+    await api('/api/telegram/coach', { method: 'DELETE' });
+    toast('Telegram disconnected');
+    await renderCoachTelegram();
+  } catch (err) {
+    toastError(err, "Couldn't disconnect — try again");
   }
 });
 

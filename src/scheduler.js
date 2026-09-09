@@ -1,5 +1,5 @@
 import { db } from './firebase.js';
-import { sendTelegramMessage } from './telegram.js';
+import { sendTelegramMessage, payerButtons } from './telegram.js';
 import { runChat } from './gemini.js';
 import { lessonDaysOf } from './student-schema.js';
 
@@ -163,7 +163,11 @@ async function processStudent(doc, { now, mode, coachName, budget }) {
 
     budget.left--;
     const { text, source } = await buildMessage(student, reminder, { coachName });
-    const result = await sendTelegramMessage(student.telegramChatId, text);
+    // A payment chase carries the reply buttons; a lesson reminder is not
+    // something there is anything to confirm, so it goes out plain.
+    const result = await sendTelegramMessage(student.telegramChatId, text, {
+      replyMarkup: reminder.type === 'payment' ? payerButtons(doc.id) : null,
+    });
     touched = true;
 
     if (result.ok) {
@@ -192,6 +196,59 @@ const merge = (into, from) => {
 };
 
 /**
+ * Drains the one-off follow-ups a "Remind me later" tap created.
+ *
+ * These live in a subcollection per student rather than in autoReminders,
+ * because they are a queue rather than a rule: each fires once, at a moment,
+ * and is then done. Collapsing the two would mean the weekly guard applied to
+ * them, which is exactly wrong for a reminder deliberately asked for.
+ */
+async function processFollowups({ now, budget }) {
+  const out = { sent: 0, failed: 0, skipped: 0, results: [] };
+  const due = await db.collectionGroup('followups')
+    .where('sent', '==', false).get();
+
+  for (const doc of due.docs) {
+    const followup = doc.data();
+    if (new Date(followup.sendAt).getTime() > now.getTime()) continue;
+
+    const studentRef = doc.ref.parent.parent;
+    const studentDoc = await studentRef.get();
+    if (!studentDoc.exists) {
+      // The student was deleted after asking to be reminded; drop the queue
+      // entry rather than retrying it every five minutes forever.
+      await doc.ref.update({ sent: true, sentAt: new Date(now).toISOString(), skipped: 'student gone' });
+      out.skipped++;
+      continue;
+    }
+
+    const student = studentDoc.data();
+    if (!student.telegramChatId) { out.skipped++; continue; }
+    if (budget.left <= 0) { out.skipped++; continue; }
+
+    budget.left--;
+    const text = followup.message
+      || (await buildMessage(student, { type: 'payment' }, { coachName: null })).text;
+    const result = await sendTelegramMessage(student.telegramChatId, text, {
+      replyMarkup: payerButtons(studentDoc.id),
+    });
+
+    if (result.ok) {
+      await doc.ref.update({ sent: true, sentAt: new Date(now).toISOString(), lastError: null });
+      out.sent++;
+      out.results.push({ studentId: studentDoc.id, followupId: doc.id, status: 'sent' });
+    } else {
+      // Left unsent on purpose: it is already overdue, so the next sweep
+      // retries rather than dropping a reminder the parent asked for.
+      await doc.ref.update({ lastError: `${new Date(now).toISOString()}: ${result.description}` });
+      out.failed++;
+      out.results.push({ studentId: studentDoc.id, followupId: doc.id, status: 'failed', detail: result.description });
+    }
+  }
+  return out;
+}
+
+/**
  * Every coach's students, in one pass.
  *
  * A collection-group read of every student is the honest shape here: the due
@@ -208,6 +265,10 @@ export async function checkDueReminders({ now = new Date() } = {}) {
   for (const doc of snap.docs) {
     merge(totals, await processStudent(doc, { now, mode: 'due', coachName: null, budget }));
   }
+
+  // Follow-ups share the same send budget: a runaway queue must not be able to
+  // spend the cap the weekly reminders are also drawing on.
+  merge(totals, await processFollowups({ now, budget }));
 
   const { results, ...counts } = totals;
   console.log(`scheduler: ${JSON.stringify(counts)}`);

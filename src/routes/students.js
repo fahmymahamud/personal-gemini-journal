@@ -3,6 +3,8 @@ import { Router } from 'express';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db, studentsCol, eventsCol } from '../firebase.js';
 import { normalizeStudent } from '../student-schema.js';
+import { PENDING, confirmPayment, rejectPayment } from '../payments.js';
+import { readReceipt } from '../storage.js';
 
 const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || 'RemindClientBot';
 
@@ -45,6 +47,20 @@ router.post('/', async (req, res) => {
   res.status(201).json({ student: serialize(doc) });
 });
 
+// Declared before '/:id' on purpose: Express matches in order, and
+// '/:id' would otherwise swallow this and look up a student called
+// "pending-verification".
+router.get('/pending-verification', async (req, res) => {
+  const snap = await studentsCol(req.uid).where('paymentStatus', '==', PENDING).get();
+  const pending = snap.docs.map(serialize).sort((a, b) => {
+    // Newest declaration first. Anything without a timestamp sorts last rather
+    // than jumping the queue on a falsy compare.
+    const at = (x) => Date.parse(x.paymentProof?.submittedAt || '') || 0;
+    return at(b) - at(a);
+  });
+  res.json({ students: pending });
+});
+
 router.get('/:id', async (req, res) => {
   const doc = await studentsCol(req.uid).doc(req.params.id).get();
   if (!doc.exists) return res.status(404).json({ error: 'Student not found' });
@@ -75,6 +91,55 @@ router.patch('/:id', async (req, res) => {
   }
   await ref.update({ ...updates, updatedAt: FieldValue.serverTimestamp() });
   res.json({ student: serialize(await ref.get()) });
+});
+
+/*
+ * Verification is its own pair of endpoints rather than a PATCH.
+ *
+ * A PATCH that accepted paymentProof would let a client name its own verifier
+ * and its own timestamp — an approval record that the approver can write is not
+ * evidence of anything. Here the uid is taken from the verified token and the
+ * time from the server clock, and the client supplies nothing at all.
+ */
+router.post('/:id/payment/confirm', async (req, res) => {
+  const ref = studentsCol(req.uid).doc(req.params.id);
+  const doc = await ref.get();
+  if (!doc.exists) return res.status(404).json({ error: 'Student not found' });
+
+  await confirmPayment(req.uid, req.params.id, req.uid);
+  res.json({ student: serialize(await ref.get()) });
+});
+
+router.post('/:id/payment/reject', async (req, res) => {
+  const ref = studentsCol(req.uid).doc(req.params.id);
+  const doc = await ref.get();
+  if (!doc.exists) return res.status(404).json({ error: 'Student not found' });
+
+  await rejectPayment(req.uid, req.params.id);
+  res.json({ student: serialize(await ref.get()) });
+});
+
+/*
+ * Streams the receipt to the coach who owns the student.
+ *
+ * The bucket is private and public access is prevented, so this is the only way
+ * to see one. Signed URLs would have been less code and more exposure: a link
+ * that works for anyone holding it, expiring exactly when the record stops
+ * being convenient to check.
+ */
+router.get('/:id/receipt', async (req, res) => {
+  const doc = await studentsCol(req.uid).doc(req.params.id).get();
+  if (!doc.exists) return res.status(404).json({ error: 'Student not found' });
+
+  const path = doc.data().paymentProof?.path;
+  if (!path) return res.status(404).json({ error: 'No receipt on file' });
+
+  const file = await readReceipt(path);
+  if (!file) return res.status(404).json({ error: 'Receipt is no longer stored' });
+
+  res.set('Content-Type', file.contentType);
+  res.set('Cache-Control', 'private, no-store');
+  res.send(file.buffer);
 });
 
 // Returns the invite links for this student, minting the token on first ask so

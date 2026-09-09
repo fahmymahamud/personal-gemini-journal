@@ -383,6 +383,13 @@ textarea { resize: vertical; line-height: 1.5; }
 .chip-unpaid  { background: var(--warning-soft); color: var(--warning-text); border-color: var(--warning-line); }
 .chip-overdue { background: var(--danger-soft);  color: var(--danger-text);  border-color: var(--danger-line);
   animation: chip-pulse 2.4s ease-in-out infinite; }
+/* Waiting on the coach, not on the payer — so it breathes rather than pulses:
+   an alarm is the wrong note for something already dealt with. */
+.chip-pending_verification {
+  background: var(--warning-soft); color: var(--warning-text); border-color: var(--warning-line);
+}
+.chip-pending_verification::before { animation: chip-breathe 1.8s ease-in-out infinite; }
+@keyframes chip-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
 /* Only overdue pulses — if everything moved, nothing would stand out. */
 @keyframes chip-pulse {
@@ -685,6 +692,7 @@ textarea { resize: vertical; line-height: 1.5; }
 .pill-unpaid  { background: var(--warning-soft); color: var(--warning-text); }
 .pill-overdue { background: var(--danger-soft);  color: var(--danger-text); }
 .pill-note    { background: #E2E8F0;             color: #475569; }
+.pill-pending_verification { background: var(--warning-soft); color: var(--warning-text); }
 
 /* A saved one-off keeps its student's status colour and is set apart by a
    darker rim. An inset shadow, not a border — a border would make these pills
@@ -1006,6 +1014,7 @@ textarea { resize: vertical; line-height: 1.5; }
   .ov { padding: 16px; gap: 16px; }
   .ov-grid, .rem-fields { grid-template-columns: 1fr; }
   .ov-head { position: sticky; top: 0; z-index: 1; }
+  .verify-panel { left: 8px; right: 8px; width: auto; }
   .tabbar-btn { font-size: 10.5px; }
 }
 
@@ -1081,6 +1090,74 @@ textarea { resize: vertical; line-height: 1.5; }
   min-width: 24px; font-size: 12px; font-weight: 600;
   color: var(--text-secondary); letter-spacing: 0.02em;
 }
+
+/* ═══════════════ payment verification ═══════════════ */
+
+/* Amber card, not red: a declaration is good news awaiting a signature, and
+   dressing it as an error would train the coach to dread the badge. */
+.verify-card {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 16px;
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-line);
+  border-radius: var(--radius-sm);
+}
+.verify-title { font-size: 14px; font-weight: 700; color: var(--warning-text); }
+.verify-claim { margin: 0; font-size: 14px; }
+.verify-meta { margin: 0; color: var(--text-secondary); font-size: 12px; }
+.verify-card .ov-actions { margin-top: 4px; }
+
+/* ── navbar badge ── */
+.bell { position: relative; overflow: visible; }
+.badge {
+  position: absolute; top: -5px; right: -5px;
+  min-width: 17px; height: 17px; padding: 0 4px;
+  display: grid; place-items: center;
+  background: var(--danger); color: #FFFFFF;
+  border-radius: 999px; border: 2px solid var(--sidebar);
+  font: 700 10px/1 var(--font-body); letter-spacing: 0;
+}
+
+/* ── dropdown panel ── */
+.verify-panel {
+  position: absolute; top: calc(var(--nav-h) - 4px); right: 12px; z-index: 30;
+  width: min(420px, calc(100vw - 24px));
+  max-height: min(70dvh, 560px); overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-dialog);
+}
+.verify-panel-head {
+  position: sticky; top: 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.verify-list { list-style: none; margin: 0; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.verify-row {
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 12px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.verify-row-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.verify-who { font-size: 14px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.verify-fee { font-size: 14px; font-weight: 600; color: var(--accent-text); white-space: nowrap; }
+.verify-row-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.verify-open { align-self: flex-start; font-size: 12px; }
+
+/* ── receipt lightbox ── */
+.dialog-receipt { width: min(560px, calc(100vw - 32px)); }
+.receipt-wrap { display: flex; flex-direction: column; }
+.receipt-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+/* A phone screenshot is tall; cap it so the dialog never runs off the screen. */
+.receipt-img {
+  display: block; width: 100%; max-height: 62dvh;
+  object-fit: contain;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.receipt-img:not([src]) { display: none; }
 
 /* ═══════════════ admin dashboard ═══════════════ */
 .admin-shell { display: flex; flex-direction: column; min-height: 100dvh; }
