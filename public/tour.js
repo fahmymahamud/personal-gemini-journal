@@ -167,6 +167,17 @@ function buildSteps(ctx) {
         + 'connects them, which is what lets reminders send on their own.',
     },
     {
+      el: '#connect-actions, #connect-linked',
+      title: 'What the parent sees',
+      body: 'They never open this app. On connecting they get a short guide to the '
+        + 'three buttons on every payment reminder, and can type /help in the chat to '
+        + 'read it again. Nothing they type reaches you — the bot tells them so.',
+      before: toOverview,
+      absent: 'Parents never open this app. When they connect, the bot explains the three '
+        + 'buttons on a payment reminder, and /help repeats it. Anything they type gets a '
+        + 'reply saying the bot cannot pass messages on to you.',
+    },
+    {
       el: '#send-tg-btn',
       title: 'Send via Telegram',
       body: 'Sends a payment reminder to the linked chat right now, with the buttons that '

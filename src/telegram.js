@@ -152,6 +152,12 @@ export const coachButtons = (studentId) => ({
 });
 
 const ACTIONS = new Set(['paid', 'receipt', 'later', 'confirm', 'reject']);
+// Actions that address no particular student — the parent's own help button.
+const BARE_ACTIONS = new Set(['help']);
+
+export const helpButton = () => ({
+  inline_keyboard: [[{ text: '❓ How this works', callback_data: 'help' }]],
+});
 
 /**
  * Parses "action:studentId", rejecting anything else outright.
@@ -163,6 +169,8 @@ const ACTIONS = new Set(['paid', 'receipt', 'later', 'confirm', 'reject']);
 export function parseCallbackData(raw) {
   const value = String(raw || '');
   if (value.length > 64) return null;
+
+  if (BARE_ACTIONS.has(value)) return { action: value, studentId: null };
 
   const cut = value.indexOf(':');
   if (cut < 1) return null;

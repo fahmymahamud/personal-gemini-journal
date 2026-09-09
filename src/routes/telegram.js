@@ -5,11 +5,11 @@ import { db, studentsCol } from '../firebase.js';
 import {
   sendTelegramMessage, sendTelegramPhoto, answerCallback, editMessageText,
   editMessageCaption, fetchTelegramFile, parseCallbackData,
-  payerButtons, coachButtons, MAX_MESSAGE_CHARS,
+  payerButtons, coachButtons, helpButton, MAX_MESSAGE_CHARS,
 } from '../telegram.js';
 import {
   declarePayment, awaitReceipt, confirmPayment, rejectPayment,
-  scheduleFollowup, coachChatId, studentForChat, studentForCoachChat,
+  scheduleFollowup, coachChatId, studentForChat, studentForCoachChat, studentsForChat,
 } from '../payments.js';
 import { saveReceipt, MAX_RECEIPT_BYTES } from '../storage.js';
 
@@ -17,9 +17,39 @@ const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || 'RemindClientBot';
 
 const router = Router();
 
-const CONNECTED_REPLY = "✅ You're now connected to RemindClient! Your tutor can "
-  + 'send you lesson and payment reminders here. See you in class! 🎓';
-const NO_TOKEN_REPLY = 'Hi! Please ask your tutor to share your personal connection link.';
+/*
+ * Everything a parent ever reads.
+ *
+ * A parent never opens the app — this chat is the whole product to them — so
+ * the buttons have to explain themselves here or not at all. Kept short and
+ * plain: this is read on a phone, usually once, often in a hurry.
+ */
+const CONNECTED_REPLY = "✅ You're connected!\n\n"
+  + 'Your tutor will send lesson and payment reminders to this chat.';
+
+const HOW_IT_WORKS = 'Here is how it works 👇\n\n'
+  + 'When a payment reminder arrives, it comes with three buttons:\n\n'
+  + "✅ I've Paid — tells your tutor you have transferred\n"
+  + '📸 Send Receipt — then just send the screenshot in this chat\n'
+  + '⏰ Remind Me Later — I will nudge you again in 3 days\n\n'
+  + 'Your tutor confirms it and I will let you know either way.\n\n'
+  + 'One thing: I cannot pass messages to your tutor. If you need to talk to '
+  + 'them, contact them directly.\n\n'
+  + 'Type /help any time to see this again.';
+
+const NO_TOKEN_REPLY = "Hi! I'm the reminder bot for your tutor.\n\n"
+  + 'To connect, ask them to send you your personal link — it opens this chat '
+  + 'and links you automatically.';
+
+// Silence is the wrong answer to a parent who typed something: it reads as
+// broken, and they are usually trying to tell the tutor they have paid.
+const NUDGE = "I'm a reminder bot, so I cannot pass this on to your tutor.\n\n"
+  + 'If you have paid, use the buttons on the payment reminder above. '
+  + 'Otherwise please message your tutor directly.\n\n'
+  + 'Type /help to see how this works.';
+
+// A parent mid-conversation should not get the same line after every message.
+const NUDGE_EVERY_MS = 6 * 60 * 60 * 1000;
 
 // { studentId, message } -> forwards the draft to that student's Telegram chat.
 router.post('/send', async (req, res) => {
@@ -218,8 +248,14 @@ async function onReject(query, studentId) {
   }
 }
 
+async function onHelp(query) {
+  await answerCallback(query.id);
+  await sendHelp(query.message.chat.id);
+}
+
 const HANDLERS = {
-  paid: onPaid, receipt: onReceipt, later: onLater, confirm: onConfirm, reject: onReject,
+  paid: onPaid, receipt: onReceipt, later: onLater,
+  confirm: onConfirm, reject: onReject, help: onHelp,
 };
 
 async function handleCallback(query) {
@@ -240,14 +276,19 @@ async function handleCallback(query) {
  */
 async function handlePhoto(message) {
   const chatId = String(message.chat.id);
-  const snap = await db.collectionGroup('students')
-    .where('telegramChatId', '==', chatId).where('awaitingReceipt', '==', true).get();
+  // Filtering in memory rather than with .where() on a collection group: that
+  // query needs a composite index which did not exist, so every photo a parent
+  // sent was swallowed by the webhook's catch. See studentsForChat.
+  const waiting = (await studentsForChat(chatId)).filter((r) => r.student.awaitingReceipt);
+  if (!waiting.length) {
+    // A photo with nothing expecting it is not an error — say so, rather than
+    // leaving the parent wondering whether it arrived.
+    return void sendTelegramMessage(chatId,
+      'Thanks! I was not expecting a receipt just now. Tap 📸 Send Receipt on a '
+      + 'payment reminder first, then send the image.');
+  }
 
-  if (snap.empty) return;
-
-  const doc = snap.docs[0];
-  const uid = doc.ref.parent.parent.id;
-  const student = doc.data();
+  const { doc, uid, student } = waiting[0];
 
   // photo[] is ascending by size; the last is the largest Telegram kept.
   const largest = message.photo[message.photo.length - 1];
@@ -275,6 +316,29 @@ async function handlePhoto(message) {
   // The coach gets the same photo by file_id — no re-upload, no public URL.
   await notifyCoach(uid, doc.id, student, { photoFileId: largest.file_id });
   console.log(`webhook: receipt stored for student ${doc.id} (${saved.bytes} bytes)`);
+}
+
+/* ═══════════════ help ═══════════════ */
+
+const sendHelp = (chatId) => sendTelegramMessage(chatId, HOW_IT_WORKS);
+
+/**
+ * Answers a parent who typed something, at most once every few hours per chat.
+ *
+ * The throttle is stored on the student record rather than in memory because
+ * Cloud Run instances come and go; an in-process map would reset on every cold
+ * start and nag someone who is simply replying to a message.
+ */
+async function nudge(chatId) {
+  const rows = await studentsForChat(chatId);
+  if (!rows.length) return void sendTelegramMessage(chatId, NO_TOKEN_REPLY);
+
+  const now = Date.now();
+  const last = Math.max(...rows.map((r) => Date.parse(r.student.lastNudgeAt || '') || 0));
+  if (now - last < NUDGE_EVERY_MS) return;
+
+  await Promise.all(rows.map((r) => r.doc.ref.update({ lastNudgeAt: new Date(now).toISOString() })));
+  await sendTelegramMessage(chatId, NUDGE);
 }
 
 /* ═══════════════ /start ═══════════════ */
@@ -323,7 +387,10 @@ async function startStudent(chatId, chat, payload) {
     updatedAt: FieldValue.serverTimestamp(),
   });
   console.log(`webhook: connected chat ${chatId} (${displayName}) to student ${doc.id}`);
-  await tell(chatId, CONNECTED_REPLY);
+  // Confirmation and the explainer arrive together: the moment they connect is
+  // the one moment a parent is definitely paying attention.
+  await sendTelegramMessage(chatId, CONNECTED_REPLY, { replyMarkup: helpButton() });
+  await sendHelp(chatId);
 }
 
 /* ═══════════════ the webhook ═══════════════ */
@@ -355,7 +422,9 @@ webhookRouter.post('/', async (req, res) => {
 
     const chatId = message.chat.id;
     const text = String(message.text || '').trim();
-    if (!text.startsWith('/start')) return;
+
+    if (/^\/help/.test(text)) return void await sendHelp(chatId);
+    if (!text.startsWith('/start')) return void await nudge(chatId);
 
     const payload = text.slice('/start'.length).trim();
     if (!payload) return void tell(chatId, NO_TOKEN_REPLY);

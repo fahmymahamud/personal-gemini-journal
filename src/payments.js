@@ -116,6 +116,26 @@ export async function studentForChat(studentId, chatId) {
   return { doc: match, uid: match.ref.parent.parent.id, student: match.data() };
 }
 
+/**
+ * Every student reachable on one chat — siblings share a parent's chat, so this
+ * is a list rather than a single record.
+ *
+ * Fetch-and-filter, like studentForChat above, rather than
+ * .where('telegramChatId', '==', chatId). A collection-group filter needs an
+ * index that has to be provisioned separately, and a missing one throws at
+ * runtime: the receipt handler shipped with exactly that query and swallowed
+ * every photo a parent sent. At this roster size the read is trivial; past a
+ * few thousand students the answer is a chat->student map document, not a
+ * cleverer query.
+ */
+export async function studentsForChat(chatId) {
+  const snap = await db.collectionGroup('students').get();
+  const want = String(chatId);
+  return snap.docs
+    .filter((d) => String(d.data().telegramChatId || '') === want)
+    .map((doc) => ({ doc, uid: doc.ref.parent.parent.id, student: doc.data() }));
+}
+
 /** Same lookup for coach-side callbacks: the chat must be the coach's own. */
 export async function studentForCoachChat(studentId, chatId) {
   const users = await db.collection('users').where('telegramChatId', '==', String(chatId)).get();
