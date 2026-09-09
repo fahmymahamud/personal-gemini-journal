@@ -1227,6 +1227,68 @@ textarea { resize: vertical; line-height: 1.5; }
 }
 .receipt-img:not([src]) { display: none; }
 
+/* ═══════════════ guided tour ═══════════════ */
+
+/* Three layers: a blocker that eats clicks meant for the page, a ring that
+   paints the dimming as its own outward shadow so no mask is needed, and the
+   card above both. The ring takes no pointer events — the blocker beneath it
+   is what actually stops a stray click reaching a Delete button. */
+.tour { position: fixed; inset: 0; z-index: 200; }
+.tour-block { position: absolute; inset: 0; }
+.tour-ring {
+  position: fixed;
+  border-radius: 10px;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.62);
+  pointer-events: none;
+  transition: top 0.18s ease, left 0.18s ease, width 0.18s ease, height 0.18s ease;
+}
+/* With nothing to spotlight the dimming has no anchor, so the blocker carries
+   it instead and the card floats in the middle. */
+.tour:has(.tour-ring[hidden]) .tour-block { background: rgba(0, 0, 0, 0.62); }
+
+.tour-card {
+  position: fixed;
+  width: min(340px, calc(100vw - 24px));
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-dialog);
+}
+.tour-count {
+  margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-secondary);
+}
+.tour-title { font-family: var(--font-head); font-size: 17px; font-weight: 700; }
+.tour-body { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-primary); }
+/* A step describing something not currently on screen is telling, not showing —
+   the left rule says so without a second paragraph explaining itself. */
+.tour-card.is-note .tour-body {
+  padding-left: 11px; border-left: 3px solid var(--border-strong);
+  color: var(--text-secondary);
+}
+.tour-foot { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.tour-foot .spacer { flex: 1; }
+.tour-skip { color: var(--text-secondary); }
+
+@media (max-width: 767px) {
+  /* Pinned to the bottom: a card that chases the target around a small screen
+     spends half the tour covering the thing it is pointing at. */
+  .tour-card {
+    top: auto !important;
+    left: 12px !important;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-ring { transition: none; }
+}
+
 /* ═══════════════ admin dashboard ═══════════════ */
 .admin-shell { display: flex; flex-direction: column; min-height: 100dvh; }
 .admin-tag {

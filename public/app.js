@@ -3,6 +3,7 @@ import {
   onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   signInWithPopup, signOut,
 } from './firebase-client.js';
+import { startTour } from './tour.js';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -2555,6 +2556,26 @@ function toastError(err, fallback = 'Something went wrong — try again') {
   const useServerText = err?.status >= 400 && err?.status < 500 && err.message;
   toast(useServerText ? err.message : fallback, { error: true });
 }
+
+/* ════════════════ guided tour ════════════════ */
+
+// The tour drives the app through these rather than by synthesising clicks: a
+// fake click on Save or Delete would do exactly what it says on the tin.
+function openTour() {
+  startTour({
+    setView,
+    setTab,
+    focusStudent,
+    getStudents: () => state.students,
+    getSelectedId: () => state.selectedId,
+    // On a phone the list and the detail are the same column, so the rail has
+    // to be brought back before it can be pointed at.
+    showList: () => { if (isMobile()) setPane('students'); },
+  });
+}
+
+$('#tour-btn').addEventListener('click', openTour);
+$$('[data-start-tour]').forEach((b) => b.addEventListener('click', openTour));
 
 setTab('overview');
 renderQuota();
