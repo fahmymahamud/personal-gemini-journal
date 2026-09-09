@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { DAY_INDEX, lessonDaysOf } from './student-schema.js';
+import { DAY_INDEX, lessonsOf } from './student-schema.js';
 
 const WEEKS_AHEAD = 8;
 const LESSON_MINUTES = 60;
@@ -109,8 +109,8 @@ export function nextOccurrence(day, lessonTime, from = new Date()) {
   return new Date(localStart - TZ_OFFSET_MINUTES * 60000);
 }
 
-function buildEvent(student, day, now) {
-  const start = nextOccurrence(day, student.lessonTime, now);
+function buildEvent(student, lesson, now) {
+  const start = nextOccurrence(lesson.day, lesson.time, now);
   if (!start) return null;
 
   const end = new Date(start.getTime() + LESSON_MINUTES * 60000);
@@ -121,12 +121,15 @@ function buildEvent(student, day, now) {
   const status = student.paymentStatus || 'unpaid';
 
   const description = `Fee: ${fee} | Status: ${status}`
-    + (student.location ? ` | Where: ${student.location}` : '')
+    + (lesson.location ? ` | Where: ${lesson.location}` : '')
     + (student.notes ? ` | Notes: ${student.notes}` : '');
 
   return [
     'BEGIN:VEVENT',
-    `UID:${esc(student.id)}-${day}-${stamp(start).slice(0, 8)}@remindclient`,
+    // The lesson id is in the UID, not just the weekday: a student can hold two
+    // slots on one day, and a shared UID would make a subscriber treat the
+    // second as an edit of the first and show only one of them.
+    `UID:${esc(student.id)}-${esc(lesson.id)}-${lesson.day}-${stamp(start).slice(0, 8)}@remindclient`,
     `DTSTAMP:${stamp(now)}`,
     `DTSTART:${stamp(start)}`,
     `DTEND:${stamp(end)}`,
@@ -134,7 +137,7 @@ function buildEvent(student, day, now) {
     // separate VEVENT per week AND an RRULE would duplicate every lesson.
     `RRULE:FREQ=WEEKLY;BYDAY=${ICS_DAYS[new Date(start.getTime() + TZ_OFFSET_MINUTES * 60000).getUTCDay()]};COUNT=${WEEKS_AHEAD}`,
     `SUMMARY:${esc(`Lesson — ${who}`)}`,
-    ...(student.location ? [`LOCATION:${esc(student.location)}`] : []),
+    ...(lesson.location ? [`LOCATION:${esc(lesson.location)}`] : []),
     `DESCRIPTION:${esc(description)}`,
     'BEGIN:VALARM',
     'ACTION:DISPLAY',
@@ -161,11 +164,12 @@ export function buildCalendar(students, now = new Date()) {
 
   let scheduled = 0;
   for (const student of students) {
-    // One VEVENT per weekday, each with its own BYDAY rule. A single event
-    // with a multi-day BYDAY would also work, but separate ones let a client
-    // move or cancel one weekly slot without touching the others.
-    for (const day of lessonDaysOf(student)) {
-      const event = buildEvent(student, day, now);
+    // One VEVENT per lesson, each with its own BYDAY rule. A single event with
+    // a multi-day BYDAY would also work, but separate ones let a client move
+    // or cancel one weekly slot without touching the others — and each slot
+    // now carries its own time and venue, which one event could not express.
+    for (const lesson of lessonsOf(student)) {
+      const event = buildEvent(student, lesson, now);
       if (event) { lines.push(...event); scheduled += 1; }
     }
   }

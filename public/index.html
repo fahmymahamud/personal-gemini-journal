@@ -182,14 +182,14 @@
         <section id="tab-overview" class="tab-panel" role="tabpanel">
           <form id="overview-form" class="ov" novalidate>
             <header class="ov-head">
-              <h2 class="ov-title">Student Overview</h2>
-              <button id="ov-save" class="btn btn-primary btn-sm" type="submit" disabled>Save</button>
+              <h2 class="ov-title">Client Overview</h2>
             </header>
 
             <p id="ov-error" class="error" role="alert" hidden></p>
 
+            <!-- 1 · CLIENT DETAILS -->
             <section class="ov-block">
-              <h3 class="ov-h">Student details</h3>
+              <h3 class="ov-h">Client details</h3>
               <div class="ov-grid">
                 <label class="field"><span class="field-label">Name *</span>
                   <input name="name" required maxlength="120"></label>
@@ -202,50 +202,44 @@
               </div>
             </section>
 
-            <section class="ov-block">
-              <h3 class="ov-h">Lesson schedule</h3>
-              <fieldset class="field day-picker">
-                <legend class="field-label">Days</legend>
-                <div class="day-pills">
-              <label class="day-pill"><input type="checkbox" name="lessonDays" value="Mon"><span>Mon</span></label>
-              <label class="day-pill"><input type="checkbox" name="lessonDays" value="Tue"><span>Tue</span></label>
-              <label class="day-pill"><input type="checkbox" name="lessonDays" value="Wed"><span>Wed</span></label>
-              <label class="day-pill"><input type="checkbox" name="lessonDays" value="Thu"><span>Thu</span></label>
-              <label class="day-pill"><input type="checkbox" name="lessonDays" value="Fri"><span>Fri</span></label>
-              <label class="day-pill"><input type="checkbox" name="lessonDays" value="Sat"><span>Sat</span></label>
-              <label class="day-pill"><input type="checkbox" name="lessonDays" value="Sun"><span>Sun</span></label>
-                </div>
-              </fieldset>
+            <hr class="ov-rule">
 
-              <div class="ov-grid">
-                <label class="field"><span class="field-label">Time</span>
-                  <input name="lessonTime" type="time"></label>
-                <label class="field"><span class="field-label">Location</span>
-                  <input name="location" maxlength="200" placeholder="e.g. My home, Zoom"></label>
-                <label class="field"><span class="field-label">Fee</span>
-                  <input name="feeAmount" type="number" min="0" step="0.01" placeholder="0.00"></label>
-                <label class="field"><span class="field-label">Currency</span>
-                  <input name="feeCurrency" maxlength="3"></label>
-                <label class="field"><span class="field-label">Status</span>
-                  <select name="paymentStatus">
-                    <option value="unpaid">Unpaid</option>
-                    <option value="paid">Paid</option>
-                    <option value="overdue">Overdue</option>
-                    <!-- Set by the bot, not chosen here, but listed so saving a
-                         student mid-review does not drop them back to unpaid. -->
-                    <option value="pending_verification">Pending verification</option>
-                  </select></label>
-                <label class="field"><span class="field-label">Last paid</span>
-                  <input name="lastPaidDate" type="date"></label>
+            <!-- 2 · LESSON SCHEDULE -->
+            <section class="ov-block">
+              <div class="ov-h-row">
+                <h3 class="ov-h">Lesson schedule</h3>
+                <button id="add-lesson-btn" class="btn btn-primary-outline btn-sm" type="button">
+                  + Add Lesson
+                </button>
               </div>
 
-              <label class="field"><span class="field-label">Notes</span>
-                <textarea name="notes" rows="3" maxlength="2000"
-                  placeholder="Prefers evening lessons, pays monthly…"></textarea></label>
+              <div id="lessons" class="lessons"></div>
+
+              <p id="lessons-empty" class="ov-note" hidden>
+                No lessons yet — add one so this client appears on the calendar.
+              </p>
+              <p id="lessons-max" class="ov-note" hidden>Maximum 10 lessons</p>
             </section>
 
             <hr class="ov-rule">
 
+            <!-- 3 · AUTO REMINDERS -->
+            <section class="ov-block">
+              <div class="ov-h-row">
+                <h3 class="ov-h">Auto reminders</h3>
+                <span class="ov-note">2 max · repeats weekly</span>
+              </div>
+
+              <div id="reminders" class="rems"></div>
+
+              <p id="rem-nolink" class="connect-warn" hidden>
+                Reminders only send once this client is connected to Telegram.
+              </p>
+            </section>
+
+            <hr class="ov-rule">
+
+            <!-- 4 · TELEGRAM CONNECTION -->
             <section class="ov-block">
               <h3 class="ov-h">Telegram connection</h3>
 
@@ -268,57 +262,75 @@
                   <span id="connect-ok-line" class="connect-ok">✅ Connected to Telegram</span>
                   <span id="connect-warn" class="connect-warn" hidden></span>
                 </span>
-                <button id="tg-disconnect-btn" class="btn btn-ghost btn-sm" type="button">Disconnect</button>
+                <span class="connect-btns">
+                  <button id="ov-draft" class="btn btn-primary-outline btn-sm" type="button">Draft in AI Chat →</button>
+                  <button id="tg-disconnect-btn" class="btn btn-ghost btn-sm" type="button">Disconnect</button>
+                </span>
+              </div>
+
+              <div class="ov-actions">
+                <button id="send-tg-btn" class="btn btn-primary-outline btn-sm" type="button">Send via Telegram</button>
+                <span class="ov-note">Sends a payment reminder to the linked chat now.</span>
               </div>
             </section>
 
             <hr class="ov-rule">
 
-            <section id="verify-block" class="ov-block" hidden>
-              <div class="verify-card">
-                <h3 class="verify-title">🔔 Payment verification pending</h3>
-                <p id="verify-claim" class="verify-claim"></p>
-                <p id="verify-meta" class="verify-meta"></p>
-                <div class="ov-actions">
-                  <button id="verify-view" class="btn btn-ghost btn-sm" type="button" hidden>📸 View Receipt</button>
-                  <button id="verify-confirm" class="btn btn-primary btn-sm" type="button">✅ Confirm</button>
-                  <button id="verify-reject" class="btn btn-danger btn-sm" type="button">❌ Reject</button>
+            <!-- 5 · PAYMENT TRACKING -->
+            <section class="ov-block">
+              <h3 class="ov-h">Payment tracking</h3>
+              <div class="ov-grid">
+                <label class="field"><span class="field-label">Fee</span>
+                  <input name="feeAmount" type="number" min="0" step="0.01" placeholder="0.00"></label>
+                <label class="field"><span class="field-label">Currency</span>
+                  <input name="feeCurrency" maxlength="3"></label>
+                <label class="field"><span class="field-label">Status</span>
+                  <select name="paymentStatus">
+                    <option value="unpaid">Unpaid</option>
+                    <option value="paid">Paid</option>
+                    <option value="overdue">Overdue</option>
+                    <!-- Set by the bot, not chosen here, but listed so saving a
+                         student mid-review does not drop them back to unpaid. -->
+                    <option value="pending_verification">Pending verification</option>
+                  </select></label>
+                <label class="field"><span class="field-label">Last paid</span>
+                  <input name="lastPaidDate" type="date"></label>
+              </div>
+
+              <div id="verify-block" hidden>
+                <div class="verify-card">
+                  <h3 class="verify-title">🔔 Payment verification pending</h3>
+                  <p id="verify-claim" class="verify-claim"></p>
+                  <p id="verify-meta" class="verify-meta"></p>
+                  <div class="ov-actions">
+                    <button id="verify-view" class="btn btn-ghost btn-sm" type="button" hidden>📸 View Receipt</button>
+                    <button id="verify-confirm" class="btn btn-primary btn-sm" type="button">✅ Confirm</button>
+                    <button id="verify-reject" class="btn btn-danger btn-sm" type="button">❌ Reject</button>
+                  </div>
                 </div>
               </div>
-            </section>
-
-            <section class="ov-block">
-              <div class="ov-h-row">
-                <h3 class="ov-h">Auto reminders</h3>
-                <span class="ov-note">2 max · repeats weekly</span>
-              </div>
-
-              <div id="reminders" class="rems"></div>
-
-              <p id="rem-nolink" class="connect-warn" hidden>
-                Reminders only send once this student is connected to Telegram.
-              </p>
 
               <div class="ov-actions">
-                <button id="ov-test" class="btn btn-ghost btn-sm" type="button">Test Send</button>
-                <span class="ov-note">Sends every enabled reminder now, ignoring the schedule.</span>
+                <button id="mark-paid-btn" class="btn btn-primary btn-sm" type="button">Mark as Paid</button>
               </div>
             </section>
 
             <hr class="ov-rule">
 
+            <!-- 6 · NOTES -->
             <section class="ov-block">
-              <h3 class="ov-h">Actions</h3>
-              <div class="ov-actions">
-                <button id="mark-paid-btn" class="btn btn-primary" type="button">Mark as Paid</button>
-                <button id="send-tg-btn" class="btn btn-primary-outline" type="button">Send via Telegram</button>
-              </div>
+              <h3 class="ov-h">Notes</h3>
+              <label class="field"><span class="field-label">Notes</span>
+                <textarea name="notes" rows="3" maxlength="2000"
+                  placeholder="Prefers evening lessons, pays monthly…"></textarea></label>
             </section>
 
             <hr class="ov-rule">
 
-            <div class="ov-danger">
-              <button id="delete-student-btn" class="btn btn-danger btn-sm" type="button">Delete Student</button>
+            <!-- 7 · ACTIONS — Save sits at the end of the form it saves. -->
+            <div class="ov-foot">
+              <button id="ov-save" class="btn btn-primary" type="submit" disabled>Save Changes</button>
+              <button id="delete-student-btn" class="btn btn-danger" type="button">Delete Client</button>
             </div>
           </form>
         </section>
@@ -331,6 +343,14 @@
               <p id="chat-subtitle" class="chat-sub"></p>
             </div>
             <button id="new-thread-btn" class="btn btn-ghost btn-sm" type="button" hidden>New thread</button>
+          </div>
+
+          <!-- The first message a parent ever gets from the bot is the one most
+               worth getting right, and the hardest to start from a blank box. -->
+          <div class="chat-quick">
+            <button id="draft-intro-btn" class="btn btn-primary-outline btn-sm" type="button">
+              📝 Draft Bot Introduction
+            </button>
           </div>
 
           <div class="quota">
@@ -417,6 +437,24 @@
 
 
 <!-- ═══════════════════ MODAL ═══════════════════ -->
+<template id="lesson-tpl">
+  <div class="lesson-row">
+    <span class="lesson-name"></span>
+    <div class="lesson-fields">
+      <label class="field"><span class="field-label">Day</span>
+        <select class="lesson-day"></select></label>
+      <label class="field"><span class="field-label">Time</span>
+        <input type="time" class="lesson-time"></label>
+      <label class="field"><span class="field-label">Location</span>
+        <input type="text" class="lesson-location" maxlength="200"
+          placeholder="e.g. Student's home, Zoom, CC Room 3"></label>
+    </div>
+    <button type="button" class="icon-btn lesson-remove" aria-label="Remove this lesson" title="Remove this lesson">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+    </button>
+  </div>
+</template>
+
 <template id="reminder-tpl">
   <div class="rem">
     <div class="rem-head">
@@ -433,11 +471,16 @@
           <option value="payment">Payment</option>
           <option value="lesson">Lesson</option>
         </select></label>
+      <label class="field"><span class="field-label">For lesson</span>
+        <select class="rem-lesson"></select></label>
       <label class="field"><span class="field-label">Day</span>
         <select class="rem-day"></select></label>
       <label class="field"><span class="field-label">Time</span>
         <input type="time" class="rem-time"></label>
     </div>
+    <label class="field"><span class="field-label">Message</span>
+      <textarea class="rem-message" rows="3" maxlength="2000"
+        placeholder="Go to AI Chat to draft a message and paste here."></textarea></label>
     <p class="rem-meta"></p>
   </div>
 </template>
@@ -712,6 +755,22 @@
     <div class="dialog-foot">
       <span class="spacer"></span>
       <button class="btn btn-ghost" type="button" data-close-settings>Close</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ═══════════ DID THEY PAY? ═══════════
+     Asked after handing a message off to WhatsApp. The app cannot see what
+     happened in the other window, and a chaser sent is nearly always a chaser
+     that gets answered — so it asks rather than guesses. -->
+<dialog id="paid-dialog" class="dialog dialog-sm">
+  <div class="paid-wrap">
+    <h2 class="dialog-title">Did the client pay?</h2>
+    <p id="paid-sub" class="paid-sub"></p>
+    <div class="dialog-foot">
+      <span class="spacer"></span>
+      <button id="paid-skip" class="btn btn-ghost" type="button">⏭ Skip</button>
+      <button id="paid-confirm" class="btn btn-primary" type="button">✅ Mark as Paid</button>
     </div>
   </div>
 </dialog>

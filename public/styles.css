@@ -483,6 +483,8 @@ textarea { resize: vertical; line-height: 1.5; }
 .chat-title { font-size: 18px; font-weight: 600; }
 .chat-sub { margin: 3px 0 0; color: var(--text-secondary); font-size: 12px; }
 
+.chat-quick { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 24px 14px; flex: 0 0 auto; }
+
 .quota { padding: 0 24px 16px; flex: 0 0 auto; }
 .quota-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
 .quota-text { color: var(--text-secondary); font-size: 12px; }
@@ -1012,8 +1014,13 @@ textarea { resize: vertical; line-height: 1.5; }
   /* One column: two fields side by side in a phone-width card leaves neither
      enough room for a real value. */
   .ov { padding: 16px; gap: 16px; }
-  .ov-grid, .rem-fields { grid-template-columns: 1fr; }
+  .ov-grid, .rem-fields, .lesson-fields { grid-template-columns: 1fr; }
   .ov-head { position: sticky; top: 0; z-index: 1; }
+  /* The trash button would otherwise sit alone in a tall second column beside
+     three stacked fields. */
+  .lesson-row { grid-template-columns: minmax(0, 1fr); }
+  .lesson-remove { justify-self: end; }
+  .ov-foot { flex-direction: column-reverse; align-items: stretch; }
   .verify-panel { left: 8px; right: 8px; width: auto; }
   .tabbar-btn { font-size: 10.5px; }
 }
@@ -1047,6 +1054,24 @@ textarea { resize: vertical; line-height: 1.5; }
 .ov-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .ov-danger { display: flex; }
 
+/* Save sits at the end of the form it saves, with the one irreversible action
+   pushed to the far side so the two are never adjacent under a thumb. */
+.ov-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+/* ── lesson schedule ── */
+.lessons { display: flex; flex-direction: column; gap: 12px; }
+.lesson-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end; gap: 10px 12px;
+  padding: 14px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.lesson-name { grid-column: 1 / -1; font-size: 14px; font-weight: 600; }
+.lesson-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.lesson-remove { color: var(--danger-text); }
+.lesson-remove:hover { background: var(--danger-soft); border-color: var(--danger-line); }
+
 /* ── auto reminders ── */
 .rems { display: flex; flex-direction: column; gap: 12px; }
 .rem {
@@ -1057,8 +1082,11 @@ textarea { resize: vertical; line-height: 1.5; }
 }
 .rem-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .rem-name { font-size: 14px; font-weight: 600; }
-.rem-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.rem-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .rem-meta { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.45; }
+/* A lesson reminder with nothing selected cannot be saved — say so at the
+   control rather than in an error line after the attempt. */
+.rem-lesson.is-missing { border-color: var(--danger-line); background: var(--danger-soft); }
 
 /* ── switch ──
    The native checkbox stays in the DOM, stretched invisibly over the whole
@@ -1240,3 +1268,8 @@ textarea { resize: vertical; line-height: 1.5; }
 .admin-state-hint { margin: 0; color: var(--text-secondary); font-size: 12.5px; max-width: 460px; }
 .connect-who { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .connect-warn { color: var(--warning-text); font-size: 11.5px; line-height: 1.45; }
+.connect-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: none; }
+
+.paid-wrap { display: flex; flex-direction: column; gap: 8px; padding: 22px; }
+.paid-sub { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
+.paid-wrap .dialog-foot { margin-top: 8px; }

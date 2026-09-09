@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { lessonDaysOf } from './student-schema.js';
+import { lessonsOf, lessonLabel } from './student-schema.js';
 
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
 const MAX_HISTORY_MESSAGES = 40;   // ~20 exchanges, plenty for refining one draft
@@ -33,13 +33,16 @@ function describeStudent(s) {
   const payer = s.payerName
     ? `${s.payerName}${s.payerPhone ? ` (${s.payerPhone})` : ''}`
     : 'the student themselves';
-  const lesson = [lessonDaysOf(s).join('/'), s.lessonTime].filter(Boolean).join(' ') || 'not scheduled';
+  // Every slot, each with its own venue — the draft may well be about one
+  // of them in particular, and 'Wed 14:00 — Zoom' is the detail that makes a
+  // reminder useful.
+  const lessons = lessonsOf(s).map(lessonLabel).filter(Boolean).join(', ') || 'not scheduled';
 
   return [
     `Name: ${s.name}`,
     `Student's phone: ${s.studentPhone || 'unknown'}`,
     `Who pays: ${payer}`,
-    `Lesson slot: ${lesson}`,
+    `Lessons: ${lessons}`,
     `Fee per lesson: ${money(s.feeAmount, s.feeCurrency)}`,
     `Payment status: ${s.paymentStatus || 'unknown'}`,
     `Last paid: ${s.lastPaidDate || 'no record'}`,

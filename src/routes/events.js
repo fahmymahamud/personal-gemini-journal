@@ -50,7 +50,8 @@ router.put('/occurrence', async (req, res) => {
   if (!student.exists) return res.status(400).json({ error: 'Student not found' });
   occurrence.studentName = student.data().name || '';
 
-  const ref = eventsCol(req.uid).doc(occurrenceId(occurrence.studentId, occurrence.date));
+  const ref = eventsCol(req.uid)
+    .doc(occurrenceId(occurrence.studentId, occurrence.lessonId, occurrence.date));
   await ref.set({
     ...occurrence,
     userId: req.uid,

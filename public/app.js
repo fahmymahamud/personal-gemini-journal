@@ -353,11 +353,22 @@ const ovForm = $('#overview-form');
 const REMINDER_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 // Shown when a student has no reminders saved yet, so the coach configures a
-// row rather than first working out how to conjure one.
+// row rather than first working out how to conjure one. Both start as payment
+// reminders: a lesson reminder needs a lesson to point at, and a brand new
+// student may not have one yet.
 const REMINDER_DEFAULTS = [
-  { id: 'rem1', enabled: false, day: 'Monday', time: '09:00', type: 'payment' },
-  { id: 'rem2', enabled: false, day: 'Friday', time: '18:00', type: 'lesson' },
+  { id: 'rem1', enabled: false, day: 'Monday', time: '09:00', type: 'payment', lessonId: null, message: '' },
+  { id: 'rem2', enabled: false, day: 'Friday', time: '18:00', type: 'payment', lessonId: null, message: '' },
 ];
+
+const MAX_LESSONS = 10;
+// Stored short, shown long: the record keeps 'Mon' — which is what the
+// calendar, the ICS feed and every day comparison are keyed on — while the
+// dropdown reads the way a person says it.
+const DAY_LABELS = {
+  Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday',
+  Fri: 'Friday', Sat: 'Saturday', Sun: 'Sunday',
+};
 
 // Serialised form state as it was last written to the server. Save compares
 // against this, so the button is live only while something genuinely differs.
@@ -371,12 +382,10 @@ function showOvError(message) {
 
 /** Everything the form holds, in the shape the PATCH endpoint takes. */
 function ovCollect() {
-  const data = new FormData(ovForm);
-  const body = Object.fromEntries(data.entries());
-  // entries() keeps only the last checkbox of a repeated name; getAll keeps all.
-  body.lessonDays = data.getAll('lessonDays');
-  // Reminder controls carry classes rather than names on purpose: FormData
-  // would otherwise flatten two rows of identical fields into one value.
+  const body = Object.fromEntries(new FormData(ovForm).entries());
+  // Lesson and reminder controls carry classes rather than names on purpose:
+  // FormData would otherwise flatten rows of identical fields into one value.
+  body.lessons = ovReadLessons();
   body.autoReminders = ovReadReminders();
   return body;
 }
@@ -393,14 +402,106 @@ function ovRebaseline() {
 }
 
 function ovReadReminders() {
-  return $$('#reminders .rem').map((row, i) => ({
-    id: row.dataset.id || `rem${i + 1}`,
-    enabled: row.querySelector('.rem-enabled').checked,
-    day: row.querySelector('.rem-day').value,
-    time: row.querySelector('.rem-time').value,
-    type: row.querySelector('.rem-type').value,
+  return $$('#reminders .rem').map((row, i) => {
+    const type = row.querySelector('.rem-type').value;
+    const lessonId = row.querySelector('.rem-lesson').value;
+    return {
+      id: row.dataset.id || `rem${i + 1}`,
+      enabled: row.querySelector('.rem-enabled').checked,
+      day: row.querySelector('.rem-day').value,
+      time: row.querySelector('.rem-time').value,
+      type,
+      lessonId: lessonId || null,
+      message: row.querySelector('.rem-message').value,
+    };
+  });
+}
+
+/* ── lesson schedule ── */
+
+function ovReadLessons() {
+  return $$('#lessons .lesson-row').map((row, i) => ({
+    id: row.dataset.id || `les${i + 1}`,
+    day: row.querySelector('.lesson-day').value,
+    time: row.querySelector('.lesson-time').value,
+    location: row.querySelector('.lesson-location').value,
   }));
 }
+
+/** The next free lesson id, so two rows can never collide after a removal. */
+function nextLessonId() {
+  const taken = new Set($$('#lessons .lesson-row').map((row) => row.dataset.id));
+  for (let n = 1; ; n += 1) {
+    const id = `les${n}`;
+    if (!taken.has(id)) return id;
+  }
+}
+
+function addLessonRow(lesson) {
+  const row = $('#lesson-tpl').content.firstElementChild.cloneNode(true);
+  row.dataset.id = lesson.id;
+
+  const daySel = row.querySelector('.lesson-day');
+  for (const day of LESSON_DAYS) {
+    const opt = document.createElement('option');
+    opt.value = day;
+    opt.textContent = DAY_LABELS[day];
+    daySel.append(opt);
+  }
+  daySel.value = LESSON_DAYS.includes(lesson.day) ? lesson.day : 'Mon';
+
+  row.querySelector('.lesson-time').value = lesson.time || '';
+  row.querySelector('.lesson-location').value = lesson.location || '';
+
+  // Removing a lesson changes what the reminders above can point at, so the
+  // For-lesson dropdowns are rebuilt on every edit, not only on removal.
+  row.querySelector('.lesson-remove').addEventListener('click', () => removeLessonRow(row));
+  for (const field of row.querySelectorAll('input, select')) {
+    field.addEventListener('change', renderLessonOptions);
+  }
+
+  $('#lessons').append(row);
+  return row;
+}
+
+function removeLessonRow(row) {
+  const filled = ['.lesson-time', '.lesson-location']
+    .some((sel) => row.querySelector(sel).value.trim());
+  const label = row.querySelector('.lesson-name').textContent || 'this lesson';
+  if (filled && !confirm(`Remove ${label}? Anything typed into it is lost.`)) return;
+
+  row.remove();
+  renumberLessons();
+  renderLessonOptions();
+  ovMarkDirty();
+}
+
+// "Lesson 1", "Lesson 2" describe position, not identity — the stored id in
+// dataset.id is what reminders point at, and that is deliberately left alone.
+function renumberLessons() {
+  $$('#lessons .lesson-row').forEach((row, i) => {
+    row.querySelector('.lesson-name').textContent = `Lesson ${i + 1}`;
+  });
+  const count = $$('#lessons .lesson-row').length;
+  $('#lessons-empty').hidden = count > 0;
+  $('#lessons-max').hidden = count < MAX_LESSONS;
+  $('#add-lesson-btn').hidden = count >= MAX_LESSONS;
+}
+
+function renderLessons(s) {
+  $('#lessons').textContent = '';
+  for (const lesson of lessonsOf(s)) addLessonRow(lesson);
+  renumberLessons();
+}
+
+$('#add-lesson-btn').addEventListener('click', () => {
+  if ($$('#lessons .lesson-row').length >= MAX_LESSONS) return;
+  const row = addLessonRow({ id: nextLessonId(), day: 'Mon', time: '', location: '' });
+  renumberLessons();
+  renderLessonOptions();
+  ovMarkDirty();
+  row.querySelector('.lesson-time').focus();
+});
 
 function reminderMeta(r) {
   // A failure is the more useful thing to show: a reminder that silently
@@ -412,6 +513,58 @@ function reminderMeta(r) {
   return `Last sent: ${when.toLocaleString([], {
     weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
   })} ✅`;
+}
+
+/**
+ * Refills every "For lesson" dropdown from the lesson rows as they stand now.
+ *
+ * Read live off the form rather than off the saved student: a coach who adds a
+ * lesson and then points a reminder at it has not saved yet, and a dropdown
+ * that only knew the stored schedule would have nothing to offer them.
+ */
+function renderLessonOptions() {
+  const lessons = ovReadLessons();
+
+  for (const row of $$('#reminders .rem')) {
+    const select = row.querySelector('.rem-lesson');
+    const wanted = select.value;
+
+    select.textContent = '';
+    const none = document.createElement('option');
+    none.value = '';
+    none.textContent = lessons.length ? 'Not lesson-specific' : 'No lessons yet';
+    select.append(none);
+
+    for (const lesson of lessons) {
+      const opt = document.createElement('option');
+      opt.value = lesson.id;
+      opt.textContent = lessonLabel(lesson) || lesson.day;
+      select.append(opt);
+    }
+
+    // Keep the pick if the lesson is still there; a removed one falls back to
+    // blank, which the type below then decides whether to complain about.
+    select.value = lessons.some((l) => l.id === wanted) ? wanted : '';
+    syncReminderType(row);
+  }
+}
+
+/**
+ * A lesson reminder has to say which lesson; a payment reminder may. The
+ * dropdown says so rather than the save failing later with a validation error.
+ */
+function syncReminderType(row) {
+  const isLesson = row.querySelector('.rem-type').value === 'lesson';
+  const select = row.querySelector('.rem-lesson');
+  select.required = isLesson;
+
+  // Nudge a lesson reminder onto the first lesson rather than leaving it in a
+  // state that cannot be saved.
+  if (isLesson && !select.value && select.options.length > 1) select.selectedIndex = 1;
+
+  // After the nudge, not before: a row that has just been pointed at a real
+  // lesson is not missing anything, and marking it red would say otherwise.
+  select.classList.toggle('is-missing', isLesson && !select.value);
 }
 
 function renderReminders(s) {
@@ -444,11 +597,26 @@ function renderReminders(s) {
     row.querySelector('.rem-state').textContent = r.enabled ? 'On' : 'Off';
     row.querySelector('.rem-time').value = r.time || '09:00';
     row.querySelector('.rem-type').value = r.type === 'lesson' ? 'lesson' : 'payment';
+    row.querySelector('.rem-message').value = r.message || '';
     row.querySelector('.rem-meta').textContent = reminderMeta(r);
 
+    // Options are filled in by renderLessonOptions once every row exists, so
+    // the stored pick is stashed where that pass can find it.
+    row.querySelector('.rem-lesson').dataset.want = r.lessonId || '';
+
     on.addEventListener('change', () => toggleReminder(row));
+    row.querySelector('.rem-type').addEventListener('change', () => syncReminderType(row));
+    row.querySelector('.rem-lesson').addEventListener('change', () => syncReminderType(row));
     box.append(row);
   });
+
+  // Restore each row's stored lesson before the dropdowns are built, since
+  // renderLessonOptions preserves whatever the select currently holds.
+  for (const select of $$('#reminders .rem-lesson')) {
+    const want = select.dataset.want;
+    if (want) select.append(new Option('', want, true, true));
+  }
+  renderLessonOptions();
 
   // Only worth saying once a reminder is actually armed — an all-off student
   // with no Telegram link has nothing to warn about yet.
@@ -461,6 +629,17 @@ async function toggleReminder(row) {
   if (!s) return;
   const box = row.querySelector('.rem-enabled');
   const state = row.querySelector('.rem-state');
+
+  // This writes the reminders alone, so a reminder aimed at a lesson that only
+  // exists in the unsaved form would be checked against a schedule the server
+  // has never seen. Say so here rather than let it come back as a 400.
+  const saved = new Set(lessonsOf(s).map((lesson) => lesson.id));
+  const pending = ovReadReminders().find((r) => r.lessonId && !saved.has(r.lessonId));
+  if (pending) {
+    box.checked = !box.checked;
+    return toast('Save the lesson schedule first, then switch the reminder on', { error: true });
+  }
+
   box.disabled = true;
   try {
     const { student } = await api(`/api/students/${s.id}`, {
@@ -486,19 +665,15 @@ function renderOverview(s) {
   f.studentPhone.value = s.studentPhone || '';
   f.payerName.value = s.payerName || '';
   f.payerPhone.value = s.payerPhone || '';
-  f.lessonTime.value = s.lessonTime || '';
-  f.location.value = s.location || '';
   f.feeAmount.value = s.feeAmount ?? '';
   f.feeCurrency.value = (s.feeCurrency || 'SGD').toUpperCase();
   f.paymentStatus.value = s.paymentStatus || 'unpaid';
   f.lastPaidDate.value = s.lastPaidDate || '';
   f.notes.value = s.notes || '';
 
-  const days = lessonDaysOf(s);
-  for (const box of ovForm.querySelectorAll('input[name="lessonDays"]')) {
-    box.checked = days.includes(box.value);
-  }
-
+  // Lessons before reminders: the For-lesson dropdowns are built from the rows
+  // renderLessons puts on the page.
+  renderLessons(s);
   renderReminders(s);
   renderConnect(s);
   renderVerification(s);
@@ -534,25 +709,13 @@ ovForm.addEventListener('submit', async (e) => {
   }
 });
 
-$('#ov-test').addEventListener('click', async () => {
-  const s = selectedStudent();
-  if (!s) return;
-  const btn = $('#ov-test');
-  const label = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Sending…';
-  try {
-    const out = await api(`/api/scheduler/test/${s.id}`, { method: 'POST' });
-    if (out.sent) toast(`Sent ${out.sent} reminder${out.sent === 1 ? '' : 's'}`);
-    else if (out.failed) toast(`${out.failed} reminder failed to send`, { error: true });
-    else toast('Nothing to send — switch a reminder on first', { error: true });
-    await loadStudents();
-  } catch (err) {
-    toastError(err, "Couldn't send the test — try again");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = label;
-  }
+// Was a test send. Firing a real reminder at a parent to see whether the wiring
+// works is a poor way to find out, and the more useful next step after linking
+// a chat is writing what the bot will actually say — which is AI Chat's job.
+$('#ov-draft').addEventListener('click', () => {
+  if (!selectedStudent()) return;
+  setTab('chat');
+  $('#chat-input').focus();
 });
 
 // Mirrors the server's payment template, so what the coach approves in the
@@ -858,9 +1021,10 @@ function renderMessages() {
 
       const link = waLink(student, turn.text);
       if (link || student) {
-        // A button, not a link: it tries the Cloud API first and only opens
-        // wa.me if that fails, so the manual path stays available whenever the
-        // API is unconfigured, rate limited, or the number is not allowlisted.
+        // Straight to wa.me, with the recipient and the text already filled in;
+        // the coach taps Send in WhatsApp itself. The Cloud API this used to
+        // try first can only reach numbers on Meta's test allowlist, so for
+        // real parents it was a round trip that always ended here anyway.
         const wa = document.createElement('button');
         wa.type = 'button';
         wa.className = 'chip-action chip-wa';
@@ -887,47 +1051,78 @@ function renderMessages() {
   box.scrollTop = box.scrollHeight;
 }
 
-// Tries the WhatsApp Cloud API, and falls back to opening wa.me when it cannot
-// deliver. The fallback is the important half: the Cloud API only reaches
-// numbers registered as test recipients until the Meta app is approved, so
-// most real parents are unreachable through it today.
-async function sendWhatsApp(btn, student, text, fallbackLink) {
+/**
+ * Hands the draft to WhatsApp — the app on a phone, Web on a desktop — with
+ * the recipient and the message already filled in, then asks what came of it.
+ *
+ * Synchronous up to the open() on purpose: this runs inside the click's own
+ * user-gesture window, which is what stops a popup blocker refusing the tab.
+ */
+function sendWhatsApp(btn, student, text, link) {
   if (!student || btn.disabled) return;
-  const original = btn.innerHTML;
-  btn.disabled = true;
-  btn.textContent = 'Sending…';
-
-  const restore = () => { btn.innerHTML = original; btn.disabled = false; };
-
-  try {
-    const res = await api('/api/whatsapp/send', {
-      method: 'POST',
-      body: { studentId: student.id, message: text },
-    });
-    // The route answers { sent: true }. Treating any non-throwing reply as
-    // success would claim delivery for a response shape that never promised it.
-    if (!res?.sent) throw new Error('WhatsApp did not confirm delivery');
-
-    btn.classList.add('is-sent');
-    btn.textContent = '✓ Sent';
-    toast('✓ Sent via WhatsApp');
-    setTimeout(() => { btn.classList.remove('is-sent'); restore(); }, 2000);
-  } catch (err) {
-    restore();
-    if (!fallbackLink) return void toast(err.message, { error: true });
-
-    // Say why the API path failed. Falling back silently is what made an
-    // expired token look like the button simply being wired to wa.me.
-    toast(err.message ? `${err.message} Opening WhatsApp instead…` : 'Opening WhatsApp instead…',
-      { error: true, ms: 6000 });
-    // This runs after an await, so the click's user-gesture window has closed
-    // and a popup blocker may refuse the new tab outright. window.open returns
-    // null when that happens; navigating this tab is never blocked, and on a
-    // phone it is the normal hand-off to the WhatsApp app anyway.
-    const opened = window.open(fallbackLink, '_blank', 'noopener');
-    if (!opened) window.location.href = fallbackLink;
+  if (!link) {
+    return toast(`No phone number on file for ${student.name}`, { error: true });
   }
+
+  const opened = window.open(link, '_blank', 'noopener');
+  // A blocked popup is not a dead end on a phone, where this is the normal
+  // hand-off to the WhatsApp app; navigating this tab is never blocked.
+  if (!opened) {
+    window.location.href = link;
+    return;
+  }
+
+  const original = btn.innerHTML;
+  btn.classList.add('is-sent');
+  btn.textContent = '✓ Opened';
+  setTimeout(() => { btn.classList.remove('is-sent'); btn.innerHTML = original; }, 2000);
+
+  askIfPaid(student);
 }
+
+/* ── did they pay? ── */
+
+const paidDialog = $('#paid-dialog');
+let paidSubject = null;
+
+/**
+ * Asked after every hand-off to WhatsApp, because the overwhelming majority of
+ * them are payment chases and the app cannot see what happened in the other
+ * window. Skip is the harmless answer, so nothing is assumed.
+ */
+function askIfPaid(student) {
+  paidSubject = student;
+  $('#paid-sub').textContent =
+    `You just sent ${student.payerName || student.name} a message on WhatsApp.`;
+  paidDialog.showModal();
+}
+
+$('#paid-skip').addEventListener('click', () => {
+  paidSubject = null;
+  paidDialog.close();
+});
+
+$('#paid-confirm').addEventListener('click', async () => {
+  const s = paidSubject;
+  if (!s) return paidDialog.close();
+
+  const btn = $('#paid-confirm');
+  btn.disabled = true;
+  try {
+    await api(`/api/students/${s.id}`, {
+      method: 'PATCH',
+      body: { paymentStatus: 'paid', lastPaidDate: new Date().toISOString().slice(0, 10) },
+    });
+    paidDialog.close();
+    toast('Marked as paid');
+    await loadStudents();
+  } catch (err) {
+    toastError(err, "Couldn't update the payment — try again");
+  } finally {
+    btn.disabled = false;
+    paidSubject = null;
+  }
+});
 
 async function sendTelegram(btn, studentId, message) {
   if (btn.disabled) return;
@@ -969,17 +1164,58 @@ function toShortDay(value) {
 
 /**
  * The days a student teaches on, short codes in Mon-to-Sun order. Reads the
- * array, falling back to the deprecated single `lessonDay` so a record saved
- * before multi-day existed still lands on the calendar.
+ * lessons array, falling back to the fields it replaced so a record saved
+ * before multi-lesson existed still lands on the calendar.
  */
 function lessonDaysOf(student = {}) {
-  const raw = Array.isArray(student.lessonDays) ? student.lessonDays : [student.lessonDay];
+  const raw = Array.isArray(student.lessons) && student.lessons.length
+    ? student.lessons.map((lesson) => lesson?.day)
+    : (Array.isArray(student.lessonDays) ? student.lessonDays : [student.lessonDay]);
   const found = new Set();
   for (const value of raw) {
     const short = toShortDay(value);
     if (short) found.add(short);
   }
   return LESSON_DAYS.filter((day) => found.has(day));
+}
+
+/**
+ * A student's lesson slots, each with its own day, time and venue.
+ *
+ * Mirrors lessonsOf() in src/student-schema.js. A record written before the
+ * array existed carries one time and one venue spread over `lessonDays`; those
+ * are unfolded into one lesson per day, so the calendar and the Overview see
+ * the same shape whether or not the record has been re-saved since.
+ */
+function lessonsOf(student = {}) {
+  if (Array.isArray(student.lessons) && student.lessons.length) {
+    const out = [];
+    student.lessons.forEach((raw, i) => {
+      const day = toShortDay(raw?.day);
+      if (!day) return;
+      out.push({
+        id: String(raw?.id || `les${i + 1}`),
+        day,
+        time: typeof raw.time === 'string' ? raw.time : '',
+        location: typeof raw.location === 'string' ? raw.location : '',
+      });
+    });
+    return out;
+  }
+
+  return lessonDaysOf(student).map((day, i) => ({
+    id: `les${i + 1}`,
+    day,
+    time: student.lessonTime || '',
+    location: student.location || '',
+  }));
+}
+
+/** "Mon 09:00 — My home": how one lesson is named in a dropdown or a message. */
+function lessonLabel(lesson) {
+  if (!lesson) return '';
+  const when = [lesson.day, lesson.time].filter(Boolean).join(' ');
+  return lesson.location ? `${when} — ${lesson.location}` : when;
 }
 // Google-Calendar-style cells: two event pills fit, the rest roll up into "+N more".
 const MAX_PILLS = 2;
@@ -999,28 +1235,33 @@ const DAY_FMT = new Intl.DateTimeFormat(undefined,
 const DAY_TITLE_FMT = new Intl.DateTimeFormat(undefined,
   { weekday: 'long', day: 'numeric', month: 'long' });
 
-// Earliest lesson first; a student with a day but no time sorts to the end.
-const byLessonTime = (a, b) =>
-  (a.lessonTime || '99:99').localeCompare(b.lessonTime || '99:99');
+// Earliest lesson first; a slot with a day but no time sorts to the end.
+const bySlotTime = (a, b) =>
+  (a.lesson.time || '99:99').localeCompare(b.lesson.time || '99:99');
 
 /**
  * Lessons are stored as recurring weekdays plus a wall-clock time, never as
  * dated rows — so a month's occurrences are derived by walking its days and
- * matching each day's weekday against every student's lessonDays. A student
- * teaching Mon/Wed/Fri lands on all three every week.
+ * matching each day's weekday against every one of a student's lessons. A
+ * student taught Mon/Wed/Fri lands on all three every week, and one taught
+ * twice on a Monday lands twice that day.
  */
 function lessonsByDate(year, month) {
   const byDate = new Map();
-  const scheduled = state.students
-    .map((s) => ({ student: s, weekdays: new Set(lessonDaysOf(s).map((d) => CAL_DAY_INDEX[d])) }))
-    .filter((entry) => entry.weekdays.size);
-  if (!scheduled.length) return byDate;
+  const slots = [];
+  for (const student of state.students) {
+    for (const lesson of lessonsOf(student)) {
+      const weekday = CAL_DAY_INDEX[lesson.day];
+      if (weekday !== undefined) slots.push({ student, lesson, weekday });
+    }
+  }
+  if (!slots.length) return byDate;
 
   const lastDay = new Date(year, month + 1, 0).getDate();
   for (let day = 1; day <= lastDay; day += 1) {
     const weekday = new Date(year, month, day).getDay();
-    const hits = scheduled.filter((e) => e.weekdays.has(weekday)).map((e) => e.student);
-    if (hits.length) byDate.set(dateKey(year, month, day), hits.sort(byLessonTime));
+    const hits = slots.filter((slot) => slot.weekday === weekday);
+    if (hits.length) byDate.set(dateKey(year, month, day), hits.slice().sort(bySlotTime));
   }
   return byDate;
 }
@@ -1030,7 +1271,12 @@ function lessonsByDate(year, month) {
 // Overrides live in the same collection as standalone events but are never
 // drawn on their own: they modify or suppress the weekly entry they point at.
 const OCCURRENCE_TYPES = new Set(['override', 'cancelled']);
-const occurrenceKey = (studentId, date) => `${studentId}_${date}`;
+// Keyed by lesson as well as student and date: a student with two slots on one
+// Monday would otherwise have both moved by an edit meant for one of them.
+// Overrides written before lessons had ids carry no lessonId, so they are also
+// filed under the bare student_date key and still apply — see standingFor().
+const occurrenceKey = (studentId, lessonId, date) => `${studentId}_${lessonId}_${date}`;
+const legacyOccurrenceKey = (studentId, date) => `${studentId}_${date}`;
 
 async function loadEvents() {
   try {
@@ -1041,13 +1287,29 @@ async function loadEvents() {
   }
 }
 
-/** studentId_date -> the override or cancellation standing against it. */
+/** Occurrence key -> the override or cancellation standing against it. */
 function occurrenceMap() {
   const map = new Map();
   for (const event of state.events) {
-    if (OCCURRENCE_TYPES.has(event.type)) map.set(occurrenceKey(event.studentId, event.date), event);
+    if (!OCCURRENCE_TYPES.has(event.type)) continue;
+    map.set(event.lessonId
+      ? occurrenceKey(event.studentId, event.lessonId, event.date)
+      : legacyOccurrenceKey(event.studentId, event.date), event);
   }
   return map;
+}
+
+/**
+ * What stands against one lesson on one date, if anything.
+ *
+ * The lesson-specific record wins; an older one written before lessons had ids
+ * applies to whichever slot is asked about, which for the single-lesson
+ * students that could have created it is the same thing it always meant.
+ */
+function standingFor(occurrences, studentId, lessonId, date) {
+  return occurrences.get(occurrenceKey(studentId, lessonId, date))
+    || occurrences.get(legacyOccurrenceKey(studentId, date))
+    || null;
 }
 
 // Notes have no time, so they sort after the day's timed entries.
@@ -1076,18 +1338,19 @@ const statusOf = (studentId) =>
  * disagree about what falls on a date, at what time, or whether it is off.
  */
 function entriesFor(key, recurring, saved, occurrences) {
-  const lessons = recurring.map((student) => {
-    const standing = occurrences.get(occurrenceKey(student.id, key)) || null;
+  const lessons = recurring.map(({ student, lesson }) => {
+    const standing = standingFor(occurrences, student.id, lesson.id, key);
     const override = standing && standing.type === 'override' ? standing : null;
     return {
       kind: 'lesson',
       student,
+      lesson,
       override,
       cancelled: !!standing && standing.type === 'cancelled',
       // The override wins field by field, so changing only the time keeps the
-      // student's usual venue rather than blanking it.
-      time: (override && override.time) || student.lessonTime || '',
-      location: (override && override.location) || student.location || '',
+      // slot's usual venue rather than blanking it.
+      time: (override && override.time) || lesson.time || '',
+      location: (override && override.location) || lesson.location || '',
       note: (override && override.note) || '',
     };
   });
@@ -1103,8 +1366,9 @@ function entriesFor(key, recurring, saved, occurrences) {
 }
 
 /** Stable handle for one entry, used to highlight the one that was tapped. */
-const entryId = (entry) =>
-  (entry.kind === 'event' ? `event:${entry.event.id}` : `lesson:${entry.student.id}`);
+const entryId = (entry) => (entry.kind === 'event'
+  ? `event:${entry.event.id}`
+  : `lesson:${entry.student.id}:${entry.lesson.id}`);
 
 // A month cell has room for a time and, at a push, a venue — the name would
 // only ellipsise away. The day modal is where the detail lives.
@@ -1372,7 +1636,7 @@ function recurringLessonRow(entry) {
     restore.textContent = 'Restore';
     restore.addEventListener('click', (e) => {
       e.stopPropagation();
-      restoreLesson(s.id);
+      restoreLesson(entry);
     });
     actions.append(restore);
   } else {
@@ -1410,7 +1674,7 @@ function recurringLessonRow(entry) {
 
 const lessonDialog = $('#lesson-dialog');
 const lessonForm = $('#lesson-form');
-let editingLesson = null;   // { studentId, date, name }
+let editingLesson = null;   // { studentId, lessonId, date, name }
 
 function showLessonError(message) {
   const el = $('#lesson-error');
@@ -1422,7 +1686,9 @@ function openLessonModal(entry) {
   const s = entry.student;
   const [year, month, day] = state.calDay.split('-').map(Number);
   const pretty = DAY_TITLE_FMT.format(new Date(year, month - 1, day));
-  editingLesson = { studentId: s.id, date: state.calDay, name: s.name };
+  editingLesson = {
+    studentId: s.id, lessonId: entry.lesson.id, date: state.calDay, name: s.name,
+  };
 
   lessonForm.reset();
   showLessonError('');
@@ -1451,11 +1717,17 @@ lessonForm.addEventListener('submit', async (e) => {
 
   try {
     if (data.scope === 'future') {
-      // Moves the weekly slot itself. Any override already standing on other
-      // dates keeps its own time — those were deliberate exceptions.
+      // Moves this one weekly slot, leaving the student's other lessons where
+      // they are. Any override already standing on other dates keeps its own
+      // time — those were deliberate exceptions.
+      const student = state.students.find((x) => x.id === editingLesson.studentId);
+      const lessons = lessonsOf(student || {}).map((lesson) => (
+        lesson.id === editingLesson.lessonId
+          ? { ...lesson, time: data.time, location: data.location }
+          : lesson));
       await api(`/api/students/${editingLesson.studentId}`, {
         method: 'PATCH',
-        body: { lessonTime: data.time, location: data.location },
+        body: { lessons },
       });
       await loadStudents();
       toast('All future lessons updated');
@@ -1465,6 +1737,7 @@ lessonForm.addEventListener('submit', async (e) => {
         body: {
           type: 'override',
           studentId: editingLesson.studentId,
+          lessonId: editingLesson.lessonId,
           date: editingLesson.date,
           time: data.time,
           location: data.location,
@@ -1495,7 +1768,12 @@ $('#lesson-remove').addEventListener('click', async () => {
   try {
     await api('/api/events/occurrence', {
       method: 'PUT',
-      body: { type: 'cancelled', studentId: editingLesson.studentId, date: editingLesson.date },
+      body: {
+        type: 'cancelled',
+        studentId: editingLesson.studentId,
+        lessonId: editingLesson.lessonId,
+        date: editingLesson.date,
+      },
     });
     await loadEvents();
     lessonDialog.close();
@@ -1510,9 +1788,13 @@ $('#lesson-remove').addEventListener('click', async () => {
 });
 
 /** Deletes the cancellation, so the weekly lesson reappears on that date. */
-async function restoreLesson(studentId) {
+async function restoreLesson(entry) {
+  // Delete whichever record actually cancelled this slot — a lesson-specific
+  // one, or an older bare student_date one from before lessons had ids.
+  const standing = standingFor(occurrenceMap(), entry.student.id, entry.lesson.id, state.calDay);
+  if (!standing) return;
   try {
-    await api(`/api/events/${occurrenceKey(studentId, state.calDay)}`, { method: 'DELETE' });
+    await api(`/api/events/${standing.id}`, { method: 'DELETE' });
     await loadEvents();
     renderCalendar();
     renderDayModal();
@@ -1894,6 +2176,21 @@ $('#chat-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send($('#chat-input').value); }
 });
 
+/**
+ * The bot's first message to a family, drafted rather than written from
+ * scratch. It is the one message that has to explain what this thing is and
+ * why it is now in their chat, and it is the hardest one to start cold.
+ */
+$('#draft-intro-btn').addEventListener('click', () => {
+  const s = selectedStudent();
+  if (!s) return toast('Pick a client first', { error: true });
+
+  send(`Write a friendly introduction message for my Telegram bot to send to `
+    + `${s.payerName || s.name} for the first time. The bot will be sending lesson and `
+    + `payment reminders for ${s.name}. Keep it short, warm, and professional. Include `
+    + 'that they can tap buttons to confirm payment or send receipts.');
+});
+
 $('#new-thread-btn').addEventListener('click', () => {
   state.threads.delete(threadKey());
   renderMessages();
@@ -1956,7 +2253,7 @@ form.addEventListener('submit', async (e) => {
 $('#delete-student-btn').addEventListener('click', async () => {
   const s = selectedStudent();
   if (!s) return;
-  if (!confirm(`Delete ${s.name}? This removes all their data and cannot be undone.`)) return;
+  if (!confirm(`Delete client ${s.name}? This removes all their data and cannot be undone.`)) return;
 
   const btn = $('#delete-student-btn');
   btn.disabled = true;

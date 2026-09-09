@@ -9,9 +9,17 @@ export const DURATIONS = [30, 60, 90, 120];
 
 /**
  * Deterministic id, so one date can only ever carry one override for one
- * student — saving twice corrects the first rather than stacking on it.
+ * lesson — saving twice corrects the first rather than stacking on it.
+ *
+ * The lesson id is part of it because a student can hold two slots on the same
+ * weekday, and an edit to one must not move the other. Overrides written
+ * before lessons had ids keep their bare `studentId_date` id and are still
+ * read: the client falls back to that key when no lesson-specific record
+ * stands against a slot.
  */
-export const occurrenceId = (studentId, date) => `${studentId}_${date}`;
+export const occurrenceId = (studentId, lessonId, date) => (lessonId
+  ? `${studentId}_${lessonId}_${date}`
+  : `${studentId}_${date}`);
 
 function duration(value) {
   if (value === null || value === undefined || value === '') return 60;
@@ -79,15 +87,19 @@ export function normalizeOccurrence(input = {}) {
   if (!date) throw new ValidationError('date is required');
 
   const studentId = str(input.studentId, 'studentId', { max: 128, required: true });
+  // Which of the student's slots this is about. Optional: a client that has not
+  // been told about lessons yet still gets the old one-slot-per-day behaviour.
+  const lessonId = str(input.lessonId, 'lessonId', { max: 32 }) || null;
 
   // A cancellation carries no detail — it only says "not this week".
   if (type === 'cancelled') {
-    return { type, studentId, studentName: '', date, time: '', location: '', note: '' };
+    return { type, studentId, lessonId, studentName: '', date, time: '', location: '', note: '' };
   }
 
   return {
     type,
     studentId,
+    lessonId,
     studentName: '',
     date,
     time: time24(input.time, 'time'),

@@ -27,17 +27,66 @@ export function toShortDay(value) {
 
 /**
  * The days a student has lessons on, always as short codes in Mon-to-Sun
- * order. Falls back to the deprecated single `lessonDay` so a record written
- * before the array existed still lands on the calendar.
+ * order. Reads the `lessons` array first, then the deprecated `lessonDays`,
+ * then the even older single `lessonDay`, so a record written at any point in
+ * this schema's life still lands on the calendar.
  */
 export function lessonDaysOf(student = {}) {
-  const raw = Array.isArray(student.lessonDays) ? student.lessonDays : [student.lessonDay];
+  const raw = Array.isArray(student.lessons) && student.lessons.length
+    ? student.lessons.map((lesson) => lesson?.day)
+    : (Array.isArray(student.lessonDays) ? student.lessonDays : [student.lessonDay]);
   const found = new Set();
   for (const value of raw) {
     const short = toShortDay(value);
     if (short) found.add(short);
   }
   return LESSON_DAYS.filter((day) => found.has(day));
+}
+
+/* ── lessons ── */
+
+// One student, several slots: Monday at home and Wednesday on Zoom are two
+// different lessons, each with its own venue — and a reminder can be pointed
+// at one of them specifically.
+export const MAX_LESSONS = 10;
+
+/**
+ * A student's lesson slots, in the order the coach arranged them.
+ *
+ * Records written before the array existed carry a single `lessonTime` and
+ * `location` spread across `lessonDays`. Those are unfolded here into one
+ * lesson per day, so every reader sees the same shape and no stored document
+ * needs rewriting before it can be read.
+ */
+export function lessonsOf(student = {}) {
+  if (Array.isArray(student.lessons) && student.lessons.length) {
+    const out = [];
+    student.lessons.forEach((raw, i) => {
+      const day = toShortDay(raw?.day);
+      if (!day) return;
+      out.push({
+        id: String(raw?.id || `les${i + 1}`),
+        day,
+        time: typeof raw.time === 'string' ? raw.time : '',
+        location: typeof raw.location === 'string' ? raw.location : '',
+      });
+    });
+    return out;
+  }
+
+  return lessonDaysOf(student).map((day, i) => ({
+    id: `les${i + 1}`,
+    day,
+    time: student.lessonTime || '',
+    location: student.location || '',
+  }));
+}
+
+/** "Mon 09:00 — My home": how one lesson is named in a dropdown or a message. */
+export function lessonLabel(lesson) {
+  if (!lesson) return '';
+  const when = [lesson.day, lesson.time].filter(Boolean).join(' ');
+  return lesson.location ? `${when} — ${lesson.location}` : when;
 }
 
 /* ── auto reminders ── */
@@ -133,6 +182,66 @@ function money(value, field) {
 }
 
 /**
+ * Validates the lesson list a client sent.
+ *
+ * Order is the coach's, and it is kept: the rows are labelled "Lesson 1",
+ * "Lesson 2" on screen, and sorting them into weekday order behind the coach's
+ * back would renumber rows they had just arranged.
+ */
+export function normalizeLessons(value, field = 'lessons') {
+  if (value === null || value === undefined || value === '') return [];
+  if (!Array.isArray(value)) throw new ValidationError(`${field} must be an array`);
+  if (value.length > MAX_LESSONS) {
+    throw new ValidationError(`${field} allows at most ${MAX_LESSONS} lessons`);
+  }
+
+  const seen = new Set();
+  return value.map((raw, i) => {
+    if (!raw || typeof raw !== 'object') throw new ValidationError(`${field}[${i}] must be an object`);
+
+    const id = str(raw.id, `${field}[${i}].id`, { max: 32 }) || `les${i + 1}`;
+    if (seen.has(id)) throw new ValidationError(`${field} has two lessons with id "${id}"`);
+    seen.add(id);
+
+    const day = toShortDay(raw.day);
+    if (!day) throw new ValidationError(`${field}[${i}].day must be one of: ${LESSON_DAYS.join(', ')}`);
+
+    return {
+      id,
+      day,
+      // A slot the coach has not pinned to an hour yet is allowed: it still
+      // belongs on the calendar as that day's lesson.
+      time: time24(raw.time, `${field}[${i}].time`),
+      location: str(raw.location, `${field}[${i}].location`, { max: 200 }),
+    };
+  });
+}
+
+/**
+ * The lessons implied by a body that still speaks the old language — a set of
+ * days, one time, one venue. The Add Client dialog is the live caller.
+ */
+function lessonsFromLegacyInput(input) {
+  const raw = Object.prototype.hasOwnProperty.call(input, 'lessonDays')
+    ? input.lessonDays : input.lessonDay;
+  const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+
+  const found = new Set();
+  for (const value of list) {
+    const short = toShortDay(value);
+    if (!short) throw new ValidationError(`lessonDays must contain only: ${LESSON_DAYS.join(', ')}`);
+    found.add(short);
+  }
+
+  return LESSON_DAYS.filter((day) => found.has(day)).map((day, i) => ({
+    id: `les${i + 1}`,
+    day,
+    time: input.lessonTime ?? '',
+    location: input.location ?? '',
+  }));
+}
+
+/**
  * Validates the reminder list a client sent.
  *
  * `lastSent` and `lastError` are deliberately NOT read from the input. They are
@@ -162,12 +271,27 @@ export function normalizeAutoReminders(value, field = 'autoReminders') {
     const time = time24(raw.time, `${field}[${i}].time`);
     if (!time) throw new ValidationError(`${field}[${i}].time is required`);
 
+    const type = oneOf(raw.type, `${field}[${i}].type`, REMINDER_TYPES, { fallback: 'payment' });
+
+    // Which lesson this reminder is about. A payment chase is about the month
+    // rather than any one slot, so it may leave this empty; a lesson reminder
+    // that cannot say which lesson has nothing to remind anyone of.
+    const lessonId = str(raw.lessonId, `${field}[${i}].lessonId`, { max: 32 }) || null;
+    if (type === 'lesson' && !lessonId) {
+      throw new ValidationError(
+        `Reminder ${i + 1} is a lesson reminder — choose which lesson it is for`);
+    }
+
     return {
       id,
       enabled: raw.enabled === true || raw.enabled === 'true',
       day,
       time,
-      type: oneOf(raw.type, `${field}[${i}].type`, REMINDER_TYPES, { fallback: 'payment' }),
+      type,
+      lessonId,
+      // The coach's own words, drafted in AI Chat and pasted in. Empty means
+      // "write one for me" — see scheduler.buildMessage.
+      message: str(raw.message, `${field}[${i}].message`, { max: 2000 }),
       lastSent: null,
       lastError: null,
     };
@@ -193,21 +317,14 @@ export function normalizeStudent(input = {}, { partial = false } = {}) {
 
   set('payerName', () => str(input.payerName, 'payerName', { max: 120 }));
   set('payerPhone', () => toE164(str(input.payerPhone, 'payerPhone', { max: 32 })) || '');
-  // Accepts the array, or the deprecated single value, and always emits the
-  // array — so a PATCH from an old client still upgrades the record.
-  if (!partial || has('lessonDays') || has('lessonDay')) {
-    const raw = has('lessonDays') ? input.lessonDays : input.lessonDay;
-    const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
-    const found = new Set();
-    for (const value of list) {
-      const short = toShortDay(value);
-      if (!short) throw new ValidationError(`lessonDays must contain only: ${LESSON_DAYS.join(', ')}`);
-      found.add(short);
-    }
-    out.lessonDays = LESSON_DAYS.filter((day) => found.has(day));
+  // Accepts the lessons array, or the day/time/venue trio it replaced, and
+  // always emits the array — so the Add Client dialog, which still asks for a
+  // set of days and one time, writes a record in the current shape.
+  if (!partial || has('lessons') || has('lessonDays') || has('lessonDay')) {
+    out.lessons = has('lessons')
+      ? normalizeLessons(input.lessons)
+      : normalizeLessons(lessonsFromLegacyInput(input));
   }
-  set('lessonTime', () => time24(input.lessonTime, 'lessonTime'));
-  set('location', () => str(input.location, 'location', { max: 200 }));
   set('feeAmount', () => money(input.feeAmount, 'feeAmount'));
   set('feeCurrency', () => (str(input.feeCurrency, 'feeCurrency', { max: 3 }) || 'SGD').toUpperCase());
   set('paymentStatus', () => oneOf(input.paymentStatus, 'paymentStatus', PAYMENT_STATUSES, { fallback: 'unpaid' }));

@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { Router } from 'express';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db, studentsCol, eventsCol } from '../firebase.js';
-import { normalizeStudent } from '../student-schema.js';
+import { normalizeStudent, lessonsOf } from '../student-schema.js';
 import { PENDING, confirmPayment, rejectPayment } from '../payments.js';
 import { readReceipt } from '../storage.js';
 
@@ -16,6 +16,34 @@ const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || 'RemindClientBot';
 const newConnectionToken = () => crypto.randomBytes(16).toString('base64url');
 
 const router = Router();
+
+/**
+ * Points every reminder at a lesson that actually exists.
+ *
+ * A reminder holds a lessonId, not a copy of the slot, so deleting a lesson
+ * leaves any reminder aimed at it dangling. The frontend clears those as the
+ * row is removed; this is the backstop for a client that did not, and for the
+ * order the two arrays happen to arrive in.
+ *
+ * A payment reminder simply loses the link. A lesson reminder has nothing left
+ * to describe, so it is rejected rather than quietly sending about a slot that
+ * is no longer in the record.
+ */
+function checkReminderLessons(reminders, lessons) {
+  const ids = new Set(lessons.map((lesson) => lesson.id));
+  for (const [i, reminder] of reminders.entries()) {
+    if (reminder.lessonId && ids.has(reminder.lessonId)) continue;
+    if (reminder.type === 'lesson') {
+      const err = new Error(
+        `Reminder ${i + 1} is about a lesson that is no longer in the schedule — `
+        + 'pick another lesson or switch it to a payment reminder');
+      err.status = 400;
+      throw err;
+    }
+    reminder.lessonId = null;
+  }
+  return reminders;
+}
 
 function serialize(doc) {
   const data = doc.data();
@@ -35,6 +63,9 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   const student = normalizeStudent(req.body);
+  if (student.autoReminders?.length) {
+    checkReminderLessons(student.autoReminders, student.lessons || []);
+  }
   const ref = await studentsCol(req.uid).add({
     ...student,
     // Redundant next to the path, but it keeps a future collection-group query
@@ -73,9 +104,14 @@ router.patch('/:id', async (req, res) => {
   if (!doc.exists) return res.status(404).json({ error: 'Student not found' });
 
   const updates = normalizeStudent(req.body, { partial: true });
-  // Writing the array retires the single-day field it replaced, so a record
-  // never carries two sources of truth for the same thing.
-  if (updates.lessonDays) updates.lessonDay = FieldValue.delete();
+  // Writing the lessons array retires the three fields it replaced, so a
+  // record never carries two sources of truth for the same schedule.
+  if (updates.lessons) {
+    updates.lessonDay = FieldValue.delete();
+    updates.lessonDays = FieldValue.delete();
+    updates.lessonTime = FieldValue.delete();
+    updates.location = FieldValue.delete();
+  }
   // The schema drops lastSent/lastError on the way in, because a client must
   // not be able to re-arm a reminder that already fired. Carry the stored
   // values across by id, so editing a reminder's time does not also forget
@@ -88,6 +124,9 @@ router.patch('/:id', async (req, res) => {
       lastSent: before.get(r.id)?.lastSent ?? null,
       lastError: before.get(r.id)?.lastError ?? null,
     }));
+    // Against the lessons this save leaves behind, which is the incoming array
+    // when the schedule is part of the same PATCH and the stored one otherwise.
+    checkReminderLessons(updates.autoReminders, updates.lessons ?? lessonsOf(doc.data()));
   }
   await ref.update({ ...updates, updatedAt: FieldValue.serverTimestamp() });
   res.json({ student: serialize(await ref.get()) });

@@ -1,7 +1,7 @@
 import { db } from './firebase.js';
 import { sendTelegramMessage, payerButtons } from './telegram.js';
 import { runChat } from './gemini.js';
-import { lessonDaysOf } from './student-schema.js';
+import { lessonsOf, lessonLabel } from './student-schema.js';
 
 /* ═══════════════════ policy ═══════════════════ */
 
@@ -91,8 +91,20 @@ export function paymentTemplate(s) {
     + `${money(s)} is due. Thank you! 🙏 ${SIGNATURE}`;
 }
 
-export function lessonTemplate(s) {
-  const when = [lessonDaysOf(s).join('/'), s.lessonTime].filter(Boolean).join(' ') || 'soon';
+/** The lesson a reminder points at, or null when it names none. */
+export function linkedLesson(student, reminder) {
+  if (!reminder?.lessonId) return null;
+  return lessonsOf(student).find((lesson) => lesson.id === reminder.lessonId) || null;
+}
+
+export function lessonTemplate(s, reminder = null) {
+  // Name the slot the reminder is actually about. Listing every lesson the
+  // student has would be noise in a message about one of them, and is what
+  // this said before a student could have more than one.
+  const lesson = linkedLesson(s, reminder);
+  const when = lesson
+    ? lessonLabel(lesson)
+    : (lessonsOf(s).map(lessonLabel).filter(Boolean).join(', ') || 'soon');
   return `Hi ${addressee(s)}, reminder that ${s.name} has a lesson tomorrow `
     + `(${when}). See you there! 📚 ${SIGNATURE}`;
 }
@@ -100,14 +112,23 @@ export function lessonTemplate(s) {
 /**
  * The text to send for one reminder.
  *
- * Payment reminders are drafted by Gemini so they read like the coach wrote
- * them; every failure path — no key, quota spent, empty reply — falls back to
- * the template rather than skipping the send, because a slightly plainer
- * reminder that arrives beats a perfect one that does not. Lesson reminders are
- * template-only: they carry no judgement, only a time.
+ * A message the coach wrote themselves wins outright, and goes out exactly as
+ * typed — no signature appended, because those are their words and they can
+ * sign them however they like.
+ *
+ * Otherwise: payment reminders are drafted by Gemini so they read like the
+ * coach wrote them; every failure path — no key, quota spent, empty reply —
+ * falls back to the template rather than skipping the send, because a slightly
+ * plainer reminder that arrives beats a perfect one that does not. Lesson
+ * reminders are template-only: they carry no judgement, only a time.
  */
 export async function buildMessage(student, reminder, { coachName = null } = {}) {
-  if (reminder.type !== 'payment') return { text: lessonTemplate(student), source: 'template' };
+  const custom = String(reminder.message || '').trim();
+  if (custom) return { text: custom, source: 'custom' };
+
+  if (reminder.type !== 'payment') {
+    return { text: lessonTemplate(student, reminder), source: 'template' };
+  }
 
   try {
     const reply = await runChat({
