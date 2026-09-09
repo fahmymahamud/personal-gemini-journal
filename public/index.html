@@ -161,65 +161,133 @@
           <button class="tab" type="button" data-tab="chat" role="tab" aria-selected="false">AI CHAT</button>
         </nav>
 
-        <!-- OVERVIEW -->
+        <!-- OVERVIEW — the single place a student is viewed and edited -->
         <section id="tab-overview" class="tab-panel" role="tabpanel">
-          <div class="student-hero">
-            <div class="hero-main">
-              <h2 id="hero-name" class="hero-name"></h2>
-              <p id="hero-payer" class="hero-payer"></p>
+          <form id="overview-form" class="ov" novalidate>
+            <header class="ov-head">
+              <h2 class="ov-title">Student Overview</h2>
+              <button id="ov-save" class="btn btn-primary btn-sm" type="submit" disabled>Save</button>
+            </header>
+
+            <p id="ov-error" class="error" role="alert" hidden></p>
+
+            <section class="ov-block">
+              <h3 class="ov-h">Student details</h3>
+              <div class="ov-grid">
+                <label class="field"><span class="field-label">Name *</span>
+                  <input name="name" required maxlength="120"></label>
+                <label class="field"><span class="field-label">Phone</span>
+                  <input name="studentPhone" placeholder="9123 4567"></label>
+                <label class="field"><span class="field-label">Payer name</span>
+                  <input name="payerName" maxlength="120" placeholder="Parent / guardian"></label>
+                <label class="field"><span class="field-label">Payer phone</span>
+                  <input name="payerPhone" placeholder="Leave blank if same"></label>
+              </div>
+            </section>
+
+            <section class="ov-block">
+              <h3 class="ov-h">Lesson schedule</h3>
+              <fieldset class="field day-picker">
+                <legend class="field-label">Days</legend>
+                <div class="day-pills">
+              <label class="day-pill"><input type="checkbox" name="lessonDays" value="Mon"><span>Mon</span></label>
+              <label class="day-pill"><input type="checkbox" name="lessonDays" value="Tue"><span>Tue</span></label>
+              <label class="day-pill"><input type="checkbox" name="lessonDays" value="Wed"><span>Wed</span></label>
+              <label class="day-pill"><input type="checkbox" name="lessonDays" value="Thu"><span>Thu</span></label>
+              <label class="day-pill"><input type="checkbox" name="lessonDays" value="Fri"><span>Fri</span></label>
+              <label class="day-pill"><input type="checkbox" name="lessonDays" value="Sat"><span>Sat</span></label>
+              <label class="day-pill"><input type="checkbox" name="lessonDays" value="Sun"><span>Sun</span></label>
+                </div>
+              </fieldset>
+
+              <div class="ov-grid">
+                <label class="field"><span class="field-label">Time</span>
+                  <input name="lessonTime" type="time"></label>
+                <label class="field"><span class="field-label">Location</span>
+                  <input name="location" maxlength="200" placeholder="e.g. My home, Zoom"></label>
+                <label class="field"><span class="field-label">Fee</span>
+                  <input name="feeAmount" type="number" min="0" step="0.01" placeholder="0.00"></label>
+                <label class="field"><span class="field-label">Currency</span>
+                  <input name="feeCurrency" maxlength="3"></label>
+                <label class="field"><span class="field-label">Status</span>
+                  <select name="paymentStatus">
+                    <option value="unpaid">Unpaid</option>
+                    <option value="paid">Paid</option>
+                    <option value="overdue">Overdue</option>
+                  </select></label>
+                <label class="field"><span class="field-label">Last paid</span>
+                  <input name="lastPaidDate" type="date"></label>
+              </div>
+
+              <label class="field"><span class="field-label">Notes</span>
+                <textarea name="notes" rows="3" maxlength="2000"
+                  placeholder="Prefers evening lessons, pays monthly…"></textarea></label>
+            </section>
+
+            <hr class="ov-rule">
+
+            <section class="ov-block">
+              <h3 class="ov-h">Telegram connection</h3>
+
+              <!-- not yet linked -->
+              <div id="connect-actions" class="connect-actions">
+                <a id="tg-invite-btn" class="btn btn-primary" target="_blank" rel="noopener">📲 Send Telegram Link</a>
+                <button id="tg-copy-btn" class="btn btn-primary-outline" type="button">📋 Copy Link</button>
+              </div>
+              <p id="connect-nophone" class="connect-warn" hidden>
+                No payer phone on file — add one above to send the invite directly, or copy the link and send it yourself.
+              </p>
+              <p id="connect-help" class="connect-help">
+                Send this to your student or parent. When they tap Start in Telegram,
+                they'll be connected here automatically.
+              </p>
+
+              <!-- already linked -->
+              <div id="connect-linked" class="connect-linked" hidden>
+                <span class="connect-who">
+                  <span id="connect-ok-line" class="connect-ok">✅ Connected to Telegram</span>
+                  <span id="connect-warn" class="connect-warn" hidden></span>
+                </span>
+                <button id="tg-disconnect-btn" class="btn btn-ghost btn-sm" type="button">Disconnect</button>
+              </div>
+            </section>
+
+            <hr class="ov-rule">
+
+            <section class="ov-block">
+              <div class="ov-h-row">
+                <h3 class="ov-h">Auto reminders</h3>
+                <span class="ov-note">2 max · repeats weekly</span>
+              </div>
+
+              <div id="reminders" class="rems"></div>
+
+              <p id="rem-nolink" class="connect-warn" hidden>
+                Reminders only send once this student is connected to Telegram.
+              </p>
+
+              <div class="ov-actions">
+                <button id="ov-test" class="btn btn-ghost btn-sm" type="button">Test Send</button>
+                <span class="ov-note">Sends every enabled reminder now, ignoring the schedule.</span>
+              </div>
+            </section>
+
+            <hr class="ov-rule">
+
+            <section class="ov-block">
+              <h3 class="ov-h">Actions</h3>
+              <div class="ov-actions">
+                <button id="mark-paid-btn" class="btn btn-primary" type="button">Mark as Paid</button>
+                <button id="send-tg-btn" class="btn btn-primary-outline" type="button">Send via Telegram</button>
+              </div>
+            </section>
+
+            <hr class="ov-rule">
+
+            <div class="ov-danger">
+              <button id="delete-student-btn" class="btn btn-danger btn-sm" type="button">Delete Student</button>
             </div>
-            <div class="hero-side">
-              <span id="hero-fee" class="hero-fee"></span>
-              <span id="hero-status" class="chip chip-lg"></span>
-            </div>
-          </div>
-
-          <div class="hero-actions">
-            <button id="mark-paid-btn" class="btn btn-primary" type="button">Mark as Paid</button>
-          </div>
-
-          <div class="info-grid">
-            <div class="info-cell"><span class="info-label">Due date</span><span id="info-due" class="info-value"></span></div>
-            <div class="info-cell"><span class="info-label">Next lesson</span><span id="info-lesson" class="info-value"></span></div>
-            <div class="info-cell"><span class="info-label">Payment status</span><span id="info-status" class="info-value"></span></div>
-            <div class="info-cell"><span class="info-label">Last paid</span><span id="info-lastpaid" class="info-value"></span></div>
-          </div>
-
-          <section class="connect">
-            <h3 class="connect-title">Connect Telegram</h3>
-
-            <!-- not yet linked -->
-            <div id="connect-actions" class="connect-actions">
-              <a id="tg-invite-btn" class="btn btn-primary" target="_blank" rel="noopener">💬 Send invite via WhatsApp</a>
-              <button id="tg-copy-btn" class="btn btn-primary-outline" type="button">📋 Copy Link</button>
-            </div>
-            <p id="connect-nophone" class="connect-warn" hidden>
-              No payer phone on file — add one to send the invite directly, or copy the link and send it yourself.
-            </p>
-            <p id="connect-help" class="connect-help">
-              Send this to your student or parent. When they tap Start in Telegram,
-              they'll be connected here automatically.
-            </p>
-
-            <!-- already linked -->
-            <div id="connect-linked" class="connect-linked" hidden>
-              <span class="connect-who">
-                <span id="connect-ok-line" class="connect-ok">✅ Connected to Telegram</span>
-                <span id="connect-warn" class="connect-warn" hidden></span>
-              </span>
-              <button id="tg-disconnect-btn" class="btn btn-ghost btn-sm" type="button">Disconnect</button>
-            </div>
-          </section>
-
-          <section id="notes-block" class="notes" hidden>
-            <h3 class="notes-title">Notes</h3>
-            <p id="notes-body" class="notes-body"></p>
-          </section>
-
-          <div class="overview-foot">
-            <button id="edit-student-btn" class="btn btn-ghost btn-sm" type="button">Edit Client</button>
-            <button id="delete-student-btn" class="btn btn-danger btn-sm" type="button">Delete Client</button>
-          </div>
+          </form>
         </section>
 
         <!-- AI CHAT -->
@@ -316,10 +384,38 @@
 
 
 <!-- ═══════════════════ MODAL ═══════════════════ -->
+<template id="reminder-tpl">
+  <div class="rem">
+    <div class="rem-head">
+      <span class="rem-name"></span>
+      <label class="switch">
+        <input type="checkbox" class="rem-enabled">
+        <span class="switch-track" aria-hidden="true"></span>
+        <span class="rem-state"></span>
+      </label>
+    </div>
+    <div class="rem-fields">
+      <label class="field"><span class="field-label">Type</span>
+        <select class="rem-type">
+          <option value="payment">Payment</option>
+          <option value="lesson">Lesson</option>
+        </select></label>
+      <label class="field"><span class="field-label">Day</span>
+        <select class="rem-day"></select></label>
+      <label class="field"><span class="field-label">Time</span>
+        <input type="time" class="rem-time"></label>
+    </div>
+    <p class="rem-meta"></p>
+  </div>
+</template>
+
 <dialog id="student-dialog" class="dialog">
   <form id="student-form" method="dialog">
     <h2 id="dialog-title" class="dialog-title">Add Client</h2>
 
+<!-- Just enough to create the record. Everything else — Telegram, reminders,
+         notes, fees — is filled in on the Overview, which is now the one place
+         a student is edited. -->
     <div class="form-grid">
       <label class="field"><span class="field-label">Client name *</span><input name="name" required maxlength="120" placeholder="Muayyad"></label>
       <label class="field"><span class="field-label">Client phone *</span><input name="studentPhone" required placeholder="9123 4567"></label>
@@ -341,22 +437,7 @@
       </fieldset>
 
       <label class="field"><span class="field-label">Lesson time</span><input name="lessonTime" type="time"></label>
-      <label class="field"><span class="field-label">Location</span><input name="location" maxlength="200" placeholder="e.g. My home, Zoom"></label>
-
       <label class="field"><span class="field-label">Fee amount</span><input name="feeAmount" type="number" min="0" step="0.01" placeholder="0.00"></label>
-      <label class="field"><span class="field-label">Currency</span><input name="feeCurrency" value="SGD" maxlength="3"></label>
-
-      <label class="field"><span class="field-label">Payment status</span>
-        <select name="paymentStatus">
-          <option value="unpaid">Unpaid</option>
-          <option value="paid">Paid</option>
-          <option value="overdue">Overdue</option>
-        </select>
-      </label>
-      <label class="field"><span class="field-label">Last paid</span><input name="lastPaidDate" type="date"></label>
-
-      <label class="field field-wide"><span class="field-label">Telegram chat ID <em>optional</em></span><input name="telegramChatId" maxlength="64"></label>
-      <label class="field field-wide"><span class="field-label">Notes</span><textarea name="notes" rows="3" maxlength="2000" placeholder="Prefers evening lessons, pays monthly…"></textarea></label>
     </div>
 
     <p id="dialog-error" class="error" role="alert" hidden></p>

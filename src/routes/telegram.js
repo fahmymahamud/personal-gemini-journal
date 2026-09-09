@@ -1,24 +1,13 @@
 import { Router } from 'express';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db, studentsCol } from '../firebase.js';
+import { sendTelegramMessage, MAX_MESSAGE_CHARS } from '../telegram.js';
 
 const router = Router();
-const MAX_MESSAGE_CHARS = 4096;   // Telegram's own sendMessage limit
 
 const CONNECTED_REPLY = "✅ You're now connected to RemindClient! Your tutor can "
   + 'send you lesson and payment reminders here. See you in class! 🎓';
 const NO_TOKEN_REPLY = 'Hi! Please ask your tutor to share your personal connection link.';
-
-function botToken() {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token) {
-    const err = new Error('Telegram is not configured on the server — TELEGRAM_BOT_TOKEN is missing.');
-    err.status = 503;
-    err.expose = true;   // names the fix; the coach cannot do anything else about it
-    throw err;
-  }
-  return token;
-}
 
 // { studentId, message } -> forwards the draft to that student's Telegram chat.
 router.post('/send', async (req, res) => {
@@ -38,23 +27,17 @@ router.post('/send', async (req, res) => {
     return res.status(400).json({ error: `${student.name} has no Telegram chat ID saved.` });
   }
 
-  const response = await fetch(`https://api.telegram.org/bot${botToken()}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
-  });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || !data.ok) {
+  const result = await sendTelegramMessage(chatId, text);
+  if (!result.ok) {
     // Telegram's own wording is the useful part ("chat not found", "bot was
     // blocked by the user"), so pass it through rather than a generic failure.
-    const err = new Error(`Telegram rejected the message: ${data.description || response.status}`);
-    err.status = response.status === 400 || response.status === 403 ? 400 : 502;
+    const err = new Error(`Telegram rejected the message: ${result.description}`);
+    err.status = result.status === 400 || result.status === 403 ? 400 : 502;
     err.expose = true;
     throw err;
   }
 
-  res.json({ sent: true, messageId: data.result?.message_id ?? null });
+  res.json({ sent: true, messageId: result.messageId });
 });
 
 export default router;
@@ -62,14 +45,13 @@ export default router;
 /* ═══════════════════ webhook ═══════════════════ */
 
 async function tell(chatId, text) {
+  // Never let a reply failure bubble: the webhook must still answer 200.
+  // sendTelegramMessage resolves rather than throws, but botToken() inside it
+  // still can, so the guard stays.
   try {
-    await fetch(`https://api.telegram.org/bot${botToken()}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
-    });
+    const result = await sendTelegramMessage(chatId, text);
+    if (!result.ok) console.error('webhook reply failed:', result.description);
   } catch (err) {
-    // Never let a reply failure bubble: the webhook must still answer 200.
     console.error('webhook reply failed:', err.message);
   }
 }

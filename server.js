@@ -12,6 +12,7 @@ import calendarRoutes from './src/routes/calendar.js';
 import telegramRoutes, { webhookRouter as telegramWebhook } from './src/routes/telegram.js';
 import whatsappRoutes, { webhookRouter as whatsappWebhook } from './src/routes/whatsapp.js';
 import adminRoutes from './src/routes/admin.js';
+import schedulerRoutes, { checkRouter as schedulerCheck } from './src/routes/scheduler.js';
 import { requireAdmin } from './src/admin.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -77,6 +78,11 @@ app.use('/api/telegram', requireAuth, telegramRoutes);
 // calendar clients cannot send an Authorization header. /token inside applies
 // requireAuth itself.
 app.use('/api/calendar', calendarRoutes);
+// Same ordering rule as the webhooks above: Cloud Scheduler cannot send an
+// Authorization header, so /check must be matched before the authenticated
+// mount can swallow it. It carries X-Scheduler-Secret instead.
+app.use('/api/scheduler/check', schedulerCheck);
+app.use('/api/scheduler', requireAuth, schedulerRoutes);
 app.use('/api/admin', requireAuth, requireAdmin, adminRoutes);
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Unknown endpoint' }));

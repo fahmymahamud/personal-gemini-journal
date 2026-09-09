@@ -342,31 +342,247 @@ $('#nav-calendar-btn').addEventListener('click', () => setView('calendar'));
 
 /* ════════════════ overview ════════════════ */
 
+/* ════════════════ overview editor ════════════════
+   The Overview is the only place a student is edited — there is no separate
+   modal and no edit mode. Everything is live; Save writes the lot in one PATCH.
+   Auto-reminder switches are the exception: they save the moment they are
+   flipped, because a toggle that needs a second confirming click reads as
+   broken. */
+
+const ovForm = $('#overview-form');
+const REMINDER_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+// Shown when a student has no reminders saved yet, so the coach configures a
+// row rather than first working out how to conjure one.
+const REMINDER_DEFAULTS = [
+  { id: 'rem1', enabled: false, day: 'Monday', time: '09:00', type: 'payment' },
+  { id: 'rem2', enabled: false, day: 'Friday', time: '18:00', type: 'lesson' },
+];
+
+// Serialised form state as it was last written to the server. Save compares
+// against this, so the button is live only while something genuinely differs.
+let ovBaseline = '';
+
+function showOvError(message) {
+  const el = $('#ov-error');
+  el.textContent = message || '';
+  el.hidden = !message;
+}
+
+/** Everything the form holds, in the shape the PATCH endpoint takes. */
+function ovCollect() {
+  const data = new FormData(ovForm);
+  const body = Object.fromEntries(data.entries());
+  // entries() keeps only the last checkbox of a repeated name; getAll keeps all.
+  body.lessonDays = data.getAll('lessonDays');
+  // Reminder controls carry classes rather than names on purpose: FormData
+  // would otherwise flatten two rows of identical fields into one value.
+  body.autoReminders = ovReadReminders();
+  return body;
+}
+
+const ovSnapshot = () => JSON.stringify(ovCollect());
+
+function ovMarkDirty() {
+  $('#ov-save').disabled = ovSnapshot() === ovBaseline;
+}
+
+function ovRebaseline() {
+  ovBaseline = ovSnapshot();
+  ovMarkDirty();
+}
+
+function ovReadReminders() {
+  return $$('#reminders .rem').map((row, i) => ({
+    id: row.dataset.id || `rem${i + 1}`,
+    enabled: row.querySelector('.rem-enabled').checked,
+    day: row.querySelector('.rem-day').value,
+    time: row.querySelector('.rem-time').value,
+    type: row.querySelector('.rem-type').value,
+  }));
+}
+
+function reminderMeta(r) {
+  // A failure is the more useful thing to show: a reminder that silently
+  // stopped sending looks identical to one that never fired.
+  if (r.lastError) return `⚠️ Last attempt failed — ${r.lastError}`;
+  if (!r.lastSent) return 'Last sent: never';
+  const when = new Date(r.lastSent);
+  if (Number.isNaN(when.getTime())) return 'Last sent: never';
+  return `Last sent: ${when.toLocaleString([], {
+    weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  })} ✅`;
+}
+
+function renderReminders(s) {
+  const stored = Array.isArray(s.autoReminders) ? s.autoReminders : [];
+  const rows = REMINDER_DEFAULTS.map((fallback, i) => ({
+    ...fallback,
+    ...(stored.find((r) => r.id === fallback.id) || stored[i] || {}),
+  }));
+
+  const box = $('#reminders');
+  box.textContent = '';
+  const tpl = $('#reminder-tpl');
+
+  rows.forEach((r, i) => {
+    const row = tpl.content.firstElementChild.cloneNode(true);
+    row.dataset.id = r.id || `rem${i + 1}`;
+    row.querySelector('.rem-name').textContent = `Reminder ${i + 1}`;
+
+    const daySel = row.querySelector('.rem-day');
+    for (const day of REMINDER_DAYS) {
+      const opt = document.createElement('option');
+      opt.value = day;
+      opt.textContent = day;
+      daySel.append(opt);
+    }
+    daySel.value = REMINDER_DAYS.includes(r.day) ? r.day : 'Monday';
+
+    const on = row.querySelector('.rem-enabled');
+    on.checked = !!r.enabled;
+    row.querySelector('.rem-state').textContent = r.enabled ? 'On' : 'Off';
+    row.querySelector('.rem-time').value = r.time || '09:00';
+    row.querySelector('.rem-type').value = r.type === 'lesson' ? 'lesson' : 'payment';
+    row.querySelector('.rem-meta').textContent = reminderMeta(r);
+
+    on.addEventListener('change', () => toggleReminder(row));
+    box.append(row);
+  });
+
+  // Only worth saying once a reminder is actually armed — an all-off student
+  // with no Telegram link has nothing to warn about yet.
+  $('#rem-nolink').hidden = !!s.telegramChatId || !rows.some((r) => r.enabled);
+}
+
+/** Switches write straight through; the Save button stays out of it. */
+async function toggleReminder(row) {
+  const s = selectedStudent();
+  if (!s) return;
+  const box = row.querySelector('.rem-enabled');
+  const state = row.querySelector('.rem-state');
+  box.disabled = true;
+  try {
+    const { student } = await api(`/api/students/${s.id}`, {
+      method: 'PATCH', body: { autoReminders: ovReadReminders() },
+    });
+    Object.assign(s, student);
+    state.textContent = box.checked ? 'On' : 'Off';
+    $('#rem-nolink').hidden = !!s.telegramChatId || !ovReadReminders().some((r) => r.enabled);
+    // A toggle is already saved, so it must not leave the form looking dirty.
+    ovRebaseline();
+    toast(box.checked ? 'Reminder on' : 'Reminder off');
+  } catch (err) {
+    box.checked = !box.checked;   // put the switch back where it was
+    toastError(err, "Couldn't update the reminder — try again");
+  } finally {
+    box.disabled = false;
+  }
+}
+
 function renderOverview(s) {
-  $('#hero-name').textContent = s.name;
-  $('#hero-payer').textContent = s.payerName ? `Paid by ${s.payerName}` : 'Pays for themselves';
-  $('#hero-fee').textContent = money(s);
+  const f = ovForm.elements;
+  f.name.value = s.name || '';
+  f.studentPhone.value = s.studentPhone || '';
+  f.payerName.value = s.payerName || '';
+  f.payerPhone.value = s.payerPhone || '';
+  f.lessonTime.value = s.lessonTime || '';
+  f.location.value = s.location || '';
+  f.feeAmount.value = s.feeAmount ?? '';
+  f.feeCurrency.value = (s.feeCurrency || 'SGD').toUpperCase();
+  f.paymentStatus.value = s.paymentStatus || 'unpaid';
+  f.lastPaidDate.value = s.lastPaidDate || '';
+  f.notes.value = s.notes || '';
 
-  const side = $('#hero-status');
-  const status = s.paymentStatus || 'unpaid';
-  side.className = `chip chip-lg chip-${status}`;
-  side.textContent = STATUS_LABEL[status] || status;
-
-  $('#info-due').textContent = s.paymentStatus === 'paid' ? 'Nothing due' : money(s);
   const days = lessonDaysOf(s);
-  $('#info-lesson').textContent =
-    [days.join(', '), s.lessonTime, s.location].filter(Boolean).join(' · ') || 'Not scheduled';
-  $('#info-status').textContent = STATUS_LABEL[status] || status;
-  $('#info-lastpaid').textContent = s.lastPaidDate || 'No record';
+  for (const box of ovForm.querySelectorAll('input[name="lessonDays"]')) {
+    box.checked = days.includes(box.value);
+  }
 
+  renderReminders(s);
   renderConnect(s);
+  showOvError('');
 
-  $('#notes-block').hidden = !s.notes;
-  $('#notes-body').textContent = s.notes || '';
-
+  const status = s.paymentStatus || 'unpaid';
   $('#mark-paid-btn').disabled = status === 'paid';
   $('#mark-paid-btn').textContent = status === 'paid' ? 'Already paid' : 'Mark as Paid';
+  $('#send-tg-btn').disabled = !s.telegramChatId;
+
+  ovRebaseline();
 }
+
+ovForm.addEventListener('input', ovMarkDirty);
+ovForm.addEventListener('change', ovMarkDirty);
+
+ovForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const s = selectedStudent();
+  if (!s) return;
+  showOvError('');
+  const btn = $('#ov-save');
+  btn.disabled = true;
+  try {
+    await api(`/api/students/${s.id}`, { method: 'PATCH', body: ovCollect() });
+    toast('Saved');
+    // Reloading re-renders the sidebar and the calendar off the saved record,
+    // and renderOverview re-baselines the form on the way through.
+    await loadStudents();
+  } catch (err) {
+    showOvError(err.message);
+    ovMarkDirty();
+  }
+});
+
+$('#ov-test').addEventListener('click', async () => {
+  const s = selectedStudent();
+  if (!s) return;
+  const btn = $('#ov-test');
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  try {
+    const out = await api(`/api/scheduler/test/${s.id}`, { method: 'POST' });
+    if (out.sent) toast(`Sent ${out.sent} reminder${out.sent === 1 ? '' : 's'}`);
+    else if (out.failed) toast(`${out.failed} reminder failed to send`, { error: true });
+    else toast('Nothing to send — switch a reminder on first', { error: true });
+    await loadStudents();
+  } catch (err) {
+    toastError(err, "Couldn't send the test — try again");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+});
+
+// Mirrors the server's payment template, so what the coach approves in the
+// confirm is exactly what leaves the building.
+function paymentText(s) {
+  const amount = `${(s.feeCurrency || 'SGD').toUpperCase()} ${Number(s.feeAmount || 0).toFixed(2)}`;
+  return `Hi ${s.payerName || s.name || 'there'}, gentle reminder that ${s.name}'s fee of `
+    + `${amount} is due. Thank you! 🙏 — sent by RemindClient`;
+}
+
+$('#send-tg-btn').addEventListener('click', async () => {
+  const s = selectedStudent();
+  if (!s) return;
+  if (!s.telegramChatId) {
+    return toast(`${s.name} is not connected to Telegram yet`, { error: true });
+  }
+  const text = paymentText(s);
+  const who = s.telegramName || 'the linked chat';
+  if (!confirm(`Send this to ${who} now?\n\n${text}`)) return;
+
+  const btn = $('#send-tg-btn');
+  btn.disabled = true;
+  try {
+    await api('/api/telegram/send', { method: 'POST', body: { studentId: s.id, message: text } });
+    toast('Sent on Telegram');
+  } catch (err) {
+    toastError(err, "Couldn't send — try again");
+  } finally {
+    btn.disabled = !!selectedStudent() && !selectedStudent().telegramChatId;
+  }
+});
 
 /* ── connect telegram ── */
 
@@ -1689,7 +1905,6 @@ $('#new-thread-btn').addEventListener('click', () => {
 
 const dialog = $('#student-dialog');
 const form = $('#student-form');
-let editingId = null;
 
 function showDialogError(message) {
   const el = $('#dialog-error');
@@ -1697,37 +1912,18 @@ function showDialogError(message) {
   el.hidden = !message;
 }
 
-function openDialog(student) {
-  editingId = student?.id || null;
+// Creating only. Editing happens on the Overview, which is the one screen
+// that holds a student — so this asks for the few fields a record cannot
+// exist without and lets the rest be filled in there.
+function openDialog() {
   form.reset();
   showDialogError('');
-  $('#dialog-title').textContent = student ? 'Edit Client' : 'Add Client';
-
-  // A checkbox group is a RadioNodeList, not a single field — setting .value
-  // on it would silently do the wrong thing, so it is filled separately.
-  const dayBoxes = Array.from(form.querySelectorAll('input[name="lessonDays"]'));
-  const selectedDays = student ? lessonDaysOf(student) : [];
-  for (const box of dayBoxes) box.checked = selectedDays.includes(box.value);
-
-  if (student) {
-    for (const [key, value] of Object.entries(student)) {
-      if (key === 'lessonDays' || key === 'lessonDay') continue;
-      const field = form.elements[key];
-      if (field) field.value = value ?? '';
-    }
-  } else {
-    form.elements.feeCurrency.value = 'SGD';
-    form.elements.paymentStatus.value = 'unpaid';
-  }
+  for (const box of form.querySelectorAll('input[name="lessonDays"]')) box.checked = false;
   dialog.showModal();
 }
 
-$('#add-student-btn').addEventListener('click', () => openDialog(null));
-$$('[data-add-student]').forEach((b) => b.addEventListener('click', () => openDialog(null)));
-$('#edit-student-btn').addEventListener('click', () => {
-  const s = selectedStudent();
-  if (s) openDialog(s);
-});
+$('#add-student-btn').addEventListener('click', () => openDialog());
+$$('[data-add-student]').forEach((b) => b.addEventListener('click', () => openDialog()));
 form.querySelector('[data-close]').addEventListener('click', () => dialog.close());
 
 form.addEventListener('submit', async (e) => {
@@ -1740,16 +1936,13 @@ form.addEventListener('submit', async (e) => {
   const submit = form.querySelector('[type="submit"]');
   submit.disabled = true;
   try {
-    if (editingId) {
-      await api(`/api/students/${editingId}`, { method: 'PATCH', body });
-      toast('Client saved');
-    } else {
-      const { student } = await api('/api/students', { method: 'POST', body });
-      state.selectedId = student.id;
-      toast('Client saved');
-    }
+    const { student } = await api('/api/students', { method: 'POST', body });
+    state.selectedId = student.id;
+    toast('Client added');
     dialog.close();
     await loadStudents();
+    // Land on the record that was just made, so the rest of it can be filled in.
+    setTab('overview');
   } catch (err) {
     showDialogError(err.message);
   } finally {

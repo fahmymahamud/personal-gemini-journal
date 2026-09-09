@@ -37,6 +37,27 @@ export function lessonDaysOf(student = {}) {
   return LESSON_DAYS.filter((day) => found.has(day));
 }
 
+/* ── auto reminders ── */
+
+export const REMINDER_TYPES = ['payment', 'lesson'];
+export const MAX_AUTO_REMINDERS = 2;
+
+// Reminders repeat weekly, so one carries a weekday name rather than a date.
+// Stored in full ('Monday') because that is what the scheduler compares against
+// Intl's `weekday: 'long'` output.
+export const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+const SHORT_TO_LONG = {
+  Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday',
+  Fri: 'Friday', Sat: 'Saturday', Sun: 'Sunday',
+};
+
+/** 'mon' | 'Mon' | 'Monday' -> 'Monday'. Returns null for anything else. */
+export function toLongDay(value) {
+  const short = toShortDay(value);
+  return short ? SHORT_TO_LONG[short] : null;
+}
+
 const DEFAULT_COUNTRY_CODE = '65'; // Singapore
 
 class ValidationError extends Error {
@@ -108,6 +129,48 @@ function money(value, field) {
   return Math.round(num * 100) / 100;
 }
 
+/**
+ * Validates the reminder list a client sent.
+ *
+ * `lastSent` and `lastError` are deliberately NOT read from the input. They are
+ * the scheduler's own record of what happened, and a client that round-trips a
+ * student it fetched five minutes ago would otherwise silently roll them back —
+ * re-arming a reminder that already fired. students.js merges the stored values
+ * back in by id after this runs.
+ */
+export function normalizeAutoReminders(value, field = 'autoReminders') {
+  if (value === null || value === undefined || value === '') return [];
+  if (!Array.isArray(value)) throw new ValidationError(`${field} must be an array`);
+  if (value.length > MAX_AUTO_REMINDERS) {
+    throw new ValidationError(`${field} allows at most ${MAX_AUTO_REMINDERS} reminders`);
+  }
+
+  const seen = new Set();
+  return value.map((raw, i) => {
+    if (!raw || typeof raw !== 'object') throw new ValidationError(`${field}[${i}] must be an object`);
+
+    const id = str(raw.id, `${field}[${i}].id`, { max: 32 }) || `rem${i + 1}`;
+    if (seen.has(id)) throw new ValidationError(`${field} has two reminders with id "${id}"`);
+    seen.add(id);
+
+    const day = toLongDay(raw.day);
+    if (!day) throw new ValidationError(`${field}[${i}].day must be one of: ${DAY_NAMES.join(', ')}`);
+
+    const time = time24(raw.time, `${field}[${i}].time`);
+    if (!time) throw new ValidationError(`${field}[${i}].time is required`);
+
+    return {
+      id,
+      enabled: raw.enabled === true || raw.enabled === 'true',
+      day,
+      time,
+      type: oneOf(raw.type, `${field}[${i}].type`, REMINDER_TYPES, { fallback: 'payment' }),
+      lastSent: null,
+      lastError: null,
+    };
+  });
+}
+
 // Builds the full, defaulted document body from whatever the client sent.
 // `partial: true` (PATCH) only returns the keys actually present in the input.
 export function normalizeStudent(input = {}, { partial = false } = {}) {
@@ -148,6 +211,7 @@ export function normalizeStudent(input = {}, { partial = false } = {}) {
   set('lastPaidDate', () => isoDate(input.lastPaidDate, 'lastPaidDate'));
   set('telegramChatId', () => str(input.telegramChatId, 'telegramChatId', { max: 64 }) || null);
   set('notes', () => str(input.notes, 'notes', { max: 2000 }));
+  set('autoReminders', () => normalizeAutoReminders(input.autoReminders));
 
   if (partial && Object.keys(out).length === 0) {
     throw new ValidationError('No updatable fields supplied');

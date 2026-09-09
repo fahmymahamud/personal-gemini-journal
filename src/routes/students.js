@@ -53,12 +53,26 @@ router.get('/:id', async (req, res) => {
 
 router.patch('/:id', async (req, res) => {
   const ref = studentsCol(req.uid).doc(req.params.id);
-  if (!(await ref.get()).exists) return res.status(404).json({ error: 'Student not found' });
+  const doc = await ref.get();
+  if (!doc.exists) return res.status(404).json({ error: 'Student not found' });
 
   const updates = normalizeStudent(req.body, { partial: true });
   // Writing the array retires the single-day field it replaced, so a record
   // never carries two sources of truth for the same thing.
   if (updates.lessonDays) updates.lessonDay = FieldValue.delete();
+  // The schema drops lastSent/lastError on the way in, because a client must
+  // not be able to re-arm a reminder that already fired. Carry the stored
+  // values across by id, so editing a reminder's time does not also forget
+  // that this week's message went out.
+  if (updates.autoReminders) {
+    const before = new Map(
+      (doc.data().autoReminders || []).map((r) => [r.id, r]));
+    updates.autoReminders = updates.autoReminders.map((r) => ({
+      ...r,
+      lastSent: before.get(r.id)?.lastSent ?? null,
+      lastError: before.get(r.id)?.lastError ?? null,
+    }));
+  }
   await ref.update({ ...updates, updatedAt: FieldValue.serverTimestamp() });
   res.json({ student: serialize(await ref.get()) });
 });
