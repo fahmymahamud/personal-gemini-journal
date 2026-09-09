@@ -1,5 +1,6 @@
 import { db } from './firebase.js';
 import { sendTelegramMessage, payerButtons } from './telegram.js';
+import { planState } from './plan.js';
 import { runChat } from './gemini.js';
 import { lessonsOf, lessonLabel } from './student-schema.js';
 
@@ -289,7 +290,23 @@ export async function checkDueReminders({ now = new Date() } = {}) {
   const budget = { left: MAX_SENDS_PER_RUN };
   const totals = { checked: snap.size, sent: 0, failed: 0, skipped: 0, results: [] };
 
+  // One read per coach, not per student: a roster of thirty students under one
+  // lapsed trial should not cost thirty lookups to skip.
+  const canSend = new Map();
+  const allowed = async (uid) => {
+    if (!canSend.has(uid)) {
+      const user = await db.collection('users').doc(uid).get();
+      canSend.set(uid, planState(user.exists ? user.data() : null, { uid }).canWrite);
+    }
+    return canSend.get(uid);
+  };
+
   for (const doc of snap.docs) {
+    // A lapsed trial stops sending. Reminders go to the coach's clients in the
+    // coach's name, so continuing to send for an account that has stopped
+    // paying puts our messages in a parent's chat on nobody's authority.
+    if (!await allowed(doc.ref.parent.parent.id)) { totals.skipped++; continue; }
+
     merge(totals, await processStudent(doc, { now, mode: 'due', coachName: null, budget }));
     // Follow-ups share the same send budget: a runaway queue must not be able
     // to spend the cap the weekly reminders are also drawing on.

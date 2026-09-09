@@ -14,6 +14,8 @@ import whatsappRoutes, { webhookRouter as whatsappWebhook } from './src/routes/w
 import adminRoutes from './src/routes/admin.js';
 import schedulerRoutes, { checkRouter as schedulerCheck } from './src/routes/scheduler.js';
 import { requireAdmin } from './src/admin.js';
+import { requireActivePlan } from './src/plan.js';
+import meRoutes from './src/routes/me.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -62,18 +64,23 @@ app.get('/health', health);
 app.get('/healthz', health);
 
 app.use('/api/config', configRoutes);
-app.use('/api/students', requireAuth, studentRoutes);
-app.use('/api/chat', requireAuth, chatRoutes);
-app.use('/api/events', requireAuth, eventRoutes);
+// Reads the caller's own plan. Outside requireActivePlan on purpose: a lapsed
+// trial still has to be able to ask why it is lapsed.
+app.use('/api/me', requireAuth, meRoutes);
+// requireActivePlan lets every GET through and blocks mutations once a trial
+// has lapsed, so an unpaid coach keeps their own data in front of them.
+app.use('/api/students', requireAuth, requireActivePlan, studentRoutes);
+app.use('/api/chat', requireAuth, requireActivePlan, chatRoutes);
+app.use('/api/events', requireAuth, requireActivePlan, eventRoutes);
 // Must precede the authenticated mount below: Express matches in order, and
 // Telegram cannot send an Authorization header.
 // Must precede the authenticated mount: Express matches in order, and
 // '/api/whatsapp' would otherwise swallow '/api/whatsapp/webhook' and hand
 // Meta a 401 it cannot satisfy — Meta sends no Authorization header.
 app.use('/api/whatsapp/webhook', whatsappWebhook);
-app.use('/api/whatsapp', requireAuth, whatsappRoutes);
+app.use('/api/whatsapp', requireAuth, requireActivePlan, whatsappRoutes);
 app.use('/api/telegram/webhook', telegramWebhook);
-app.use('/api/telegram', requireAuth, telegramRoutes);
+app.use('/api/telegram', requireAuth, requireActivePlan, telegramRoutes);
 // Mounted without requireAuth: /feed.ics carries its own signed token because
 // calendar clients cannot send an Authorization header. /token inside applies
 // requireAuth itself.
@@ -82,7 +89,7 @@ app.use('/api/calendar', calendarRoutes);
 // Authorization header, so /check must be matched before the authenticated
 // mount can swallow it. It carries X-Scheduler-Secret instead.
 app.use('/api/scheduler/check', schedulerCheck);
-app.use('/api/scheduler', requireAuth, schedulerRoutes);
+app.use('/api/scheduler', requireAuth, requireActivePlan, schedulerRoutes);
 app.use('/api/admin', requireAuth, requireAdmin, adminRoutes);
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Unknown endpoint' }));

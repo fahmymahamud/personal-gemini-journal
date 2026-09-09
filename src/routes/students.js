@@ -5,6 +5,7 @@ import { db, studentsCol, eventsCol } from '../firebase.js';
 import { normalizeStudent, lessonsOf } from '../student-schema.js';
 import { PENDING, confirmPayment, rejectPayment } from '../payments.js';
 import { readReceipt } from '../storage.js';
+import { TRIAL_DEFAULTS } from '../plan.js';
 
 const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || 'RemindClientBot';
 
@@ -62,6 +63,24 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
+  // The trial writes a studentLimit onto the record, so it has to mean
+  // something — a limit that is stored and never checked is just a lie in the
+  // data. Counted rather than cached: two tabs adding at once should still be
+  // caught by the next request, and a count() is one cheap aggregate read.
+  // Only the trial is capped. The stored studentLimit stays on every record for
+  // history, but applying it to an admin or a paying coach would cap them at
+  // whatever number their trial happened to carry.
+  const limit = Number(req.profile?.studentLimit ?? TRIAL_DEFAULTS.studentLimit);
+  if (req.plan?.plan === 'trial' && Number.isFinite(limit) && limit > 0) {
+    const { count } = (await studentsCol(req.uid).count().get()).data();
+    if (count >= limit) {
+      return res.status(402).json({
+        error: 'limit_reached',
+        message: `Your plan covers ${limit} clients. Choose a plan to add more.`,
+      });
+    }
+  }
+
   const student = normalizeStudent(req.body);
   if (student.autoReminders?.length) {
     checkReminderLessons(student.autoReminders, student.lessons || []);

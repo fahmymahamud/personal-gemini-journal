@@ -1227,6 +1227,39 @@ textarea { resize: vertical; line-height: 1.5; }
 }
 .receipt-img:not([src]) { display: none; }
 
+/* ═══════════════ trial bar ═══════════════ */
+
+/* Sits between the top bar and the work area, full width, so it is read once
+   and then ignored — a floating toast would demand attention every render. */
+.trial-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 16px;
+  font-size: 13px; font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+.trial-text { flex: 1; min-width: 0; }
+.trial-cta {
+  color: inherit; text-decoration: underline; text-underline-offset: 2px;
+  white-space: nowrap; font-weight: 700;
+}
+.trial-x {
+  display: inline-flex; padding: 4px; flex: none;
+  background: none; border: 0; border-radius: 6px;
+  color: inherit; opacity: 0.75; cursor: pointer;
+}
+.trial-x:hover { opacity: 1; background: rgba(255, 255, 255, 0.18); }
+
+/* Three bands. Green while there is room, neutral once it is close, red when
+   it has run out or nearly has — the palette has no amber, and inventing one
+   for a single bar would put a fifth colour in the product. */
+.trial-bar.is-fine { background: var(--accent); color: #FFFFFF; border-bottom-color: var(--accent); }
+.trial-bar.is-soon { background: var(--sidebar); color: #FFFFFF; border-bottom-color: var(--sidebar); }
+.trial-bar.is-over { background: var(--danger); color: #FFFFFF; border-bottom-color: var(--danger); }
+
+@media (max-width: 767px) {
+  .trial-bar { padding: 8px 12px; font-size: 12px; gap: 8px; }
+}
+
 /* ═══════════════ guided tour ═══════════════ */
 
 /* Three layers: a blocker that eats clicks meant for the page, a ring that

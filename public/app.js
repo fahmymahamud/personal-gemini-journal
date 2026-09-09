@@ -26,6 +26,8 @@ const state = {
   /** studentId (or '' for none) -> [{role, text, at}] — one thread per student. */
   threads: new Map(),
   usage: null,
+  /** { plan, phase, canWrite, daysLeft, showBar } from GET /api/me. */
+  plan: null,
   tab: 'overview',
   busy: false,
 };
@@ -108,6 +110,8 @@ onAuthStateChanged(auth, async (user) => {
     state.threads.clear();
     state.events = [];
     state.usage = null;
+    state.plan = null;
+    $('#trial-bar').hidden = true;
     state.view = 'calendar';
     state.calDay = null;
     state.calMonth = startOfMonth(new Date());
@@ -130,7 +134,8 @@ onAuthStateChanged(auth, async (user) => {
   state.loadingStudents = true;
   setView('calendar');
 
-  await Promise.all([loadStudents(), loadEvents(), loadUsage(), revealAdminLink(), loadPending()]);
+  await Promise.all([loadPlan(), loadStudents(), loadEvents(), loadUsage(),
+    revealAdminLink(), loadPending()]);
   renderCalendar();
 });
 
@@ -2556,6 +2561,65 @@ function toastError(err, fallback = 'Something went wrong — try again') {
   const useServerText = err?.status >= 400 && err?.status < 500 && err.message;
   toast(useServerText ? err.message : fallback, { error: true });
 }
+
+/* ════════════════ trial bar ════════════════ */
+
+const PLAN_EMAIL = 'fahmymahamud@gmail.com';
+const PLAN_MAILTO = `mailto:${PLAN_EMAIL}`
+  + '?subject=' + encodeURIComponent('RemindClient Plan')
+  + '&body=' + encodeURIComponent('I want to subscribe to RemindClient.');
+
+// sessionStorage, not localStorage: the brief asks for the bar to come back on
+// the next sign-in, and a dismissal that outlives the session would not.
+const DISMISS_KEY = 'rc-trial-dismissed';
+
+function planNotice(p) {
+  if (p.phase === 'purge-warning') {
+    const days = p.daysToPurge ?? 0;
+    return { tone: 'over', text: `Trial ended \u00b7 your data will be deleted in ${days} day${days === 1 ? '' : 's'}` };
+  }
+  if (p.phase === 'expired') {
+    return { tone: 'over', text: 'Trial ended \u2014 your data is safe and readable, but changes are paused' };
+  }
+  const d = p.daysLeft ?? 0;
+  const label = `Free trial: ${d} day${d === 1 ? '' : 's'} remaining`;
+  // No amber in the four-colour palette, so the middle band is the neutral
+  // dark rather than a fifth hue smuggled in.
+  if (d < 3) return { tone: 'over', text: label };
+  if (d <= 7) return { tone: 'soon', text: label };
+  return { tone: 'fine', text: label };
+}
+
+function renderTrialBar() {
+  const bar = $('#trial-bar');
+  const p = state.plan;
+
+  // Paid accounts and the platform admin never see it.
+  if (!p || !p.showBar) { bar.hidden = true; return; }
+  try { if (sessionStorage.getItem(DISMISS_KEY) === '1') { bar.hidden = true; return; } } catch { /* private mode */ }
+
+  const { tone, text } = planNotice(p);
+  bar.className = `trial-bar is-${tone}`;
+  $('#trial-text').textContent = text;
+  $('#trial-cta').href = PLAN_MAILTO;
+  bar.hidden = false;
+}
+
+async function loadPlan() {
+  try {
+    state.plan = await api('/api/me');
+  } catch {
+    // A failed plan read must not lock anyone out of their own app: assume
+    // active and let the server refuse any write it disagrees with.
+    state.plan = null;
+  }
+  renderTrialBar();
+}
+
+$('#trial-dismiss').addEventListener('click', () => {
+  try { sessionStorage.setItem(DISMISS_KEY, '1'); } catch { /* private mode */ }
+  $('#trial-bar').hidden = true;
+});
 
 /* ════════════════ guided tour ════════════════ */
 
