@@ -35,16 +35,17 @@ export async function requireAuth(req, res, next) {
       });
     }
 
-    // First sight of this account starts the trial. Deliberately after the
-    // token is verified and before any route runs, so every handler downstream
-    // can trust req.plan without each one having to load it.
+    // First sight of this account creates its record — with no plan, unless the
+    // owner already granted one. Deliberately after the token is verified and
+    // before any route runs, so every handler downstream can trust req.plan
+    // without each one having to load it.
     const { profile, created } = await ensureProfile(req.user);
     req.profile = profile;
     req.plan = planState(profile, { uid: req.uid });
 
     // Not awaited: the owner's inbox must never be able to slow down, or
     // refuse, somebody's first sign-in.
-    if (created) notifySignup(req.user);
+    if (created) notifySignup(req.user, profile.plan);
 
     next();
   } catch (err) {

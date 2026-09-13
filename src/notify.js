@@ -33,23 +33,29 @@ async function ownerChatId() {
   return null;
 }
 
-async function viaTelegram({ email, displayName, at }) {
+// A new account either waits for the owner to activate it, or arrives already
+// activated because the owner added the email before the coach signed up.
+const planLine = (plan) => (plan && plan !== 'none'
+  ? `Plan: ${plan} (added by you before sign-up — already active)`
+  : 'Plan: none yet — add their email in the admin dashboard once they pay');
+
+async function viaTelegram({ email, displayName, at, plan }) {
   const chat = await ownerChatId();
   if (!chat) {
     console.log('signup: no owner Telegram chat linked — skipping the Telegram notice');
     return;
   }
   const who = displayName ? `${email} (${displayName})` : email;
-  const out = await sendTelegramMessage(chat, `🆕 New sign-up: ${who} — Trial started ${fmtDate(at)}`);
+  const out = await sendTelegramMessage(chat, `🆕 New sign-up: ${who} — ${fmtDate(at)}\n${planLine(plan)}`);
   if (!out.ok) console.error(`signup: Telegram notice failed — ${out.description}`);
 }
 
-function emailBody({ email, displayName, at }) {
+function emailBody({ email, displayName, at, plan }) {
   return 'New user signed up for RemindClient.\n\n'
     + `Name: ${displayName || '(not given)'}\n`
     + `Email: ${email}\n`
     + `Date: ${fmtDate(at)}\n`
-    + 'Plan: Trial (30 days)\n\n'
+    + `${planLine(plan)}\n\n`
     + 'Log in to admin dashboard to view.';
 }
 
@@ -102,11 +108,12 @@ async function viaEmail(payload) {
  * Fire-and-forget. Returns immediately; both channels run in the background and
  * cannot reject, so an unhandled rejection can never take the process down.
  */
-export function notifySignup(user) {
+export function notifySignup(user, plan) {
   const payload = {
     email: user.email || '(no email)',
     displayName: user.name || null,
     at: new Date(),
+    plan: plan || 'none',
   };
 
   Promise.allSettled([viaTelegram(payload), viaEmail(payload)]).then((results) => {

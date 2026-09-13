@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { planState, TRIAL_DAYS } from '../plan.js';
+import { planState } from '../plan.js';
 import { isAdmin } from '../admin.js';
 
 const router = Router();
 
 /**
- * What the browser needs to draw the trial bar and disable what it must.
+ * What the browser needs to draw the plan bar and disable what it must.
  *
  * The plan is recomputed here rather than trusted from the client, and the
  * client's copy is advisory: every write is checked again server-side by
@@ -18,7 +18,6 @@ router.get('/', (req, res) => {
     email: req.user?.email || null,
     displayName: req.user?.name || null,
     isAdmin: isAdmin(req.uid),
-    trialDays: TRIAL_DAYS,
     trialEndDate: req.profile?.trialEndDate || null,
     limits: {
       students: req.profile?.studentLimit ?? null,

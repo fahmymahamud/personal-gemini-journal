@@ -51,13 +51,17 @@ const cell = (text, cls) => {
   return td;
 };
 
-const PLAN_LABEL = { free: 'Free', trial: 'Trial', monthly: 'Monthly', annual: 'Annual' };
+const PLAN_LABEL = {
+  none: 'No plan', legacy: 'Pre-billing', admin: 'Admin',
+  trial: 'Trial', monthly: 'Monthly', annual: 'Annual',
+};
 
-function planBadge(plan) {
-  const key = String(plan || 'free').toLowerCase();
+function planBadge(plan, phase) {
+  const key = String(plan || 'none').toLowerCase();
+  const ended = phase === 'expired' || phase === 'purge-warning';
   const span = document.createElement('span');
-  span.className = `plan plan-${key}`;
-  span.textContent = (key === 'annual' ? '★ ' : '') + (PLAN_LABEL[key] || plan);
+  span.className = `plan plan-${ended ? 'none' : key}`;
+  span.textContent = (key === 'annual' ? '★ ' : '') + (PLAN_LABEL[key] || plan) + (ended ? ' · ended' : '');
   return span;
 }
 
@@ -123,7 +127,7 @@ async function loadCoaches() {
       tr.append(cell(c.email || c.uid), cell(String(c.studentCount)), cell(fmtDate(c.lastActive)));
 
       const planTd = document.createElement('td');
-      planTd.append(planBadge(c.plan));
+      planTd.append(planBadge(c.plan, c.phase));
       tr.append(planTd);
 
       const actions = document.createElement('td');
@@ -178,7 +182,7 @@ async function loadAllowlist() {
     remove.className = 'btn btn-danger btn-sm';
     remove.textContent = 'Remove';
     remove.addEventListener('click', async () => {
-      if (!confirm(`Remove ${e.email} from the allowlist?`)) return;
+      if (!confirm(`Remove ${e.email}? Their account goes back to read-only — no new clients, no reminders sent. Their data is kept.`)) return;
       remove.disabled = true;
       try {
         await api(`/api/admin/allowlist/${encodeURIComponent(e.email)}`, { method: 'DELETE' });
@@ -216,7 +220,7 @@ function syncPaidUntil() {
 $('#add-coach-btn').addEventListener('click', () => {
   form.reset();
   $('#coach-error').hidden = true;
-  form.elements.plan.value = 'trial';
+  form.elements.plan.value = 'monthly';
   syncPaidUntil();
   dialog.showModal();
 });
@@ -232,9 +236,11 @@ form.addEventListener('submit', async (e) => {
   const submit = form.querySelector('[type="submit"]');
   submit.disabled = true;
   try {
-    await api('/api/admin/allowlist', { method: 'POST', body });
+    const out = await api('/api/admin/allowlist', { method: 'POST', body });
     dialog.close();
-    toast(`${body.email} added`);
+    toast(out.activated
+      ? `${body.email} is now active`
+      : `${body.email} added — active as soon as they sign up`, { ms: 4000 });
     await Promise.all([loadAllowlist(), loadCoaches()]);
   } catch (e2) {
     err.textContent = e2.message;

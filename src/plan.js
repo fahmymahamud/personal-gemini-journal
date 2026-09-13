@@ -3,7 +3,12 @@ import { db } from './firebase.js';
 import { isAdmin } from './admin.js';
 
 /*
- * The trial lifecycle.
+ * The plan lifecycle.
+ *
+ * There is no self-serve trial. A new sign-up starts with plan 'none': they can
+ * sign in and look around, but nothing is written or sent on their behalf until
+ * the owner activates them from the admin dashboard after they pay. A trial
+ * still exists, but only as something the owner grants by hand.
  *
  * A coach's record lives as fields on users/{uid}, not at users/{uid}/profile.
  * That path has an odd number of segments, so Firestore reads it as a
@@ -12,13 +17,16 @@ import { isAdmin } from './admin.js';
  * this keeps one home for one coach.
  */
 
-export const TRIAL_DAYS = 30;
-export const READONLY_DAYS = 30;    // after expiry, data stays readable
+export const READONLY_DAYS = 30;    // after a trial ends, data stays readable
 export const PURGE_WARN_DAYS = 30;  // then a deletion warning starts showing
 
+/** What the owner can grant from the dashboard. */
+export const GRANTABLE_PLANS = ['trial', 'monthly', 'annual'];
+
+// The Starter tier, applied to owner-granted trials. Paid plans are uncapped.
 export const TRIAL_DEFAULTS = {
   plan: 'trial',
-  studentLimit: 15,
+  studentLimit: 20,
   aiMessagesPerDay: 20,
   autoRemindersPerStudent: 2,
 };
@@ -43,9 +51,10 @@ function toMillis(value) {
  * Deriving it from the dates means the answer is correct even if nothing has
  * run for a month.
  *
- * phase: 'active' | 'expired' | 'purge-warning'
+ * phase: 'active' | 'inactive' | 'expired' | 'purge-warning'
  *   active        — full use
- *   expired       — reads only; the data is all still there
+ *   inactive      — signed up, not activated yet; reads only
+ *   expired       — a granted trial ran out; reads only, data all still there
  *   purge-warning — reads only, and the UI starts warning about deletion
  */
 export function planState(profile, { uid, now = Date.now() } = {}) {
@@ -53,7 +62,17 @@ export function planState(profile, { uid, now = Date.now() } = {}) {
     return { plan: 'admin', phase: 'active', canWrite: true, daysLeft: null, showBar: false };
   }
 
-  const plan = profile?.plan || 'trial';
+  const plan = profile?.plan;
+  if (!plan) {
+    // No plan field at all: an account from before billing existed that has
+    // not signed in since. The scheduler asks about these too, and cutting off
+    // their reminders without the coach ever seeing why would be the worst way
+    // to find out. Their next sign-in writes a plan and they see the bar.
+    return { plan: 'legacy', phase: 'active', canWrite: true, daysLeft: null, showBar: false };
+  }
+  if (plan === 'none') {
+    return { plan: 'none', phase: 'inactive', canWrite: false, daysLeft: null, showBar: true };
+  }
   if (plan !== 'trial') {
     // Anything the owner has marked as paying is simply active. Billing is
     // manual today, so there is no expiry to compute.
@@ -124,27 +143,69 @@ export async function ensureProfile(user) {
     return { profile, created: false };
   }
 
-  const now = new Date();
-  const trial = {
+  // The owner may have added this email on the dashboard before the coach ever
+  // signed up — they paid first. That grant is waiting on the allowlist.
+  const email = String(user.email || '').trim().toLowerCase();
+  const pending = email ? await db.collection('allowlist').doc(email).get() : null;
+  const grant = pending?.exists && GRANTABLE_PLANS.includes(pending.data().plan)
+    ? grantFields(pending.data().plan, pending.data().paid_until)
+    : { plan: 'none' };
+
+  const record = {
     email: user.email || null,
     displayName: user.name || null,
-    ...TRIAL_DEFAULTS,
-    trialStartDate: now.toISOString(),
-    trialEndDate: new Date(now.getTime() + TRIAL_DAYS * DAY_MS).toISOString(),
+    ...grant,
     createdAt: FieldValue.serverTimestamp(),
   };
 
   // merge so an existing telegramLinkToken or chat id survives.
-  await ref.set(trial, { merge: true });
+  await ref.set(record, { merge: true });
 
-  const profile = { ...(snap.exists ? snap.data() : {}), ...trial };
+  const profile = { ...(snap.exists ? snap.data() : {}), ...record };
   cache.set(user.uid, { at: Date.now(), profile });
-  console.log(`plan: started a ${TRIAL_DAYS}-day trial for ${user.email || user.uid}`);
+  console.log(`plan: new account ${user.email || user.uid} starts on '${record.plan}'`);
   return { profile, created: true };
 }
 
+/** 'YYYY-MM-DD' from the dashboard means the end of that day in Singapore. */
+function endOfDay(value) {
+  if (!value) return null;
+  const s = String(value);
+  const ms = /^\d{4}-\d{2}-\d{2}$/.test(s) ? Date.parse(`${s}T23:59:59+08:00`) : Date.parse(s);
+  return Number.isNaN(ms) ? null : new Date(ms).toISOString();
+}
+
+/** The fields a grant writes onto users/{uid}. */
+function grantFields(plan, paidUntil) {
+  const until = endOfDay(paidUntil);
+  if (plan === 'trial') {
+    return {
+      ...TRIAL_DEFAULTS,
+      trialStartDate: new Date().toISOString(),
+      // A trial with no end date would never lapse, so the dashboard's date is
+      // required here; fall back to a month rather than to forever.
+      trialEndDate: until || new Date(Date.now() + 30 * DAY_MS).toISOString(),
+      paidUntil: until,
+    };
+  }
+  return { plan, paidUntil: until };
+}
+
+/** Owner activates (or changes) a coach's plan. Takes effect within a minute. */
+export async function grantPlan(uid, { plan, paidUntil }) {
+  await userRef(uid).set({ ...grantFields(plan, paidUntil), planUpdatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  invalidatePlan(uid);
+}
+
+/** Owner removes access: back to read-only, data untouched. */
+export async function revokePlan(uid) {
+  await userRef(uid).set({ plan: 'none', planUpdatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  invalidatePlan(uid);
+}
+
 /**
- * Blocks writes once a trial has lapsed, and lets every read through.
+ * Blocks writes for an account without an active plan, and lets every read
+ * through.
  *
  * Read-only rather than locked-out on purpose: a coach who has not paid yet
  * still needs to see their own students' phone numbers to chase a payment by
@@ -154,9 +215,16 @@ export function requireActivePlan(req, res, next) {
   if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
   if (req.plan?.canWrite !== false) return next();
 
+  if (req.plan.phase === 'inactive') {
+    return res.status(402).json({
+      error: 'no_plan',
+      message: 'Your account is not active yet. Choose a plan to start adding clients '
+        + 'and sending reminders.',
+    });
+  }
   res.status(402).json({
     error: 'trial_expired',
-    message: 'Your free trial has ended. Your data is safe and still readable — '
+    message: 'Your trial has ended. Your data is safe and still readable — '
       + 'choose a plan to start making changes again.',
   });
 }

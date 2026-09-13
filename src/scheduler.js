@@ -302,7 +302,7 @@ export async function checkDueReminders({ now = new Date() } = {}) {
   };
 
   for (const doc of snap.docs) {
-    // A lapsed trial stops sending. Reminders go to the coach's clients in the
+    // No active plan, no sending. Reminders go to the coach's clients in the
     // coach's name, so continuing to send for an account that has stopped
     // paying puts our messages in a parent's chat on nobody's authority.
     if (!await allowed(doc.ref.parent.parent.id)) { totals.skipped++; continue; }

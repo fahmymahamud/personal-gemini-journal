@@ -64,11 +64,11 @@ app.get('/health', health);
 app.get('/healthz', health);
 
 app.use('/api/config', configRoutes);
-// Reads the caller's own plan. Outside requireActivePlan on purpose: a lapsed
-// trial still has to be able to ask why it is lapsed.
+// Reads the caller's own plan. Outside requireActivePlan on purpose: an account
+// without an active plan still has to be able to ask why.
 app.use('/api/me', requireAuth, meRoutes);
-// requireActivePlan lets every GET through and blocks mutations once a trial
-// has lapsed, so an unpaid coach keeps their own data in front of them.
+// requireActivePlan lets every GET through and blocks mutations for an account
+// without an active plan, so an unpaid coach keeps their own data in front of them.
 app.use('/api/students', requireAuth, requireActivePlan, studentRoutes);
 app.use('/api/chat', requireAuth, requireActivePlan, chatRoutes);
 app.use('/api/events', requireAuth, requireActivePlan, eventRoutes);

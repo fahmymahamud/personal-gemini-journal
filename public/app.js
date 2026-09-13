@@ -2562,7 +2562,7 @@ function toastError(err, fallback = 'Something went wrong — try again') {
   toast(useServerText ? err.message : fallback, { error: true });
 }
 
-/* ════════════════ trial bar ════════════════ */
+/* ════════════════ plan bar ════════════════ */
 
 const PLAN_EMAIL = 'fahmymahamud@gmail.com';
 const PLAN_MAILTO = `mailto:${PLAN_EMAIL}`
@@ -2574,6 +2574,9 @@ const PLAN_MAILTO = `mailto:${PLAN_EMAIL}`
 const DISMISS_KEY = 'rc-trial-dismissed';
 
 function planNotice(p) {
+  if (p.phase === 'inactive') {
+    return { tone: 'soon', text: 'Your account is not active yet — choose a plan to start adding clients and sending reminders' };
+  }
   if (p.phase === 'purge-warning') {
     const days = p.daysToPurge ?? 0;
     return { tone: 'over', text: `Trial ended \u00b7 your data will be deleted in ${days} day${days === 1 ? '' : 's'}` };
@@ -2582,7 +2585,7 @@ function planNotice(p) {
     return { tone: 'over', text: 'Trial ended \u2014 your data is safe and readable, but changes are paused' };
   }
   const d = p.daysLeft ?? 0;
-  const label = `Free trial: ${d} day${d === 1 ? '' : 's'} remaining`;
+  const label = `Trial: ${d} day${d === 1 ? '' : 's'} remaining`;
   // No amber in the four-colour palette, so the middle band is the neutral
   // dark rather than a fifth hue smuggled in.
   if (d < 3) return { tone: 'over', text: label };

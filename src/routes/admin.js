@@ -1,13 +1,23 @@
 import { Router } from 'express';
 import { FieldValue } from 'firebase-admin/firestore';
 import { auth, db, studentsCol } from '../firebase.js';
-import { allowlistEnforced, invalidateAllowlist, loadAllowlist } from '../admin.js';
+import { allowlistEnforced, invalidateAllowlist } from '../admin.js';
+import { GRANTABLE_PLANS as PLANS, grantPlan, planState, revokePlan } from '../plan.js';
 import { usageDay } from '../rate-limit.js';
 
 const router = Router();
 const ALLOWLIST = 'allowlist';
-const PLANS = ['trial', 'monthly', 'annual'];
 const PAGE_SIZE = 20;
+
+/** The Auth account for an email, or null if they have not signed up yet. */
+async function userForEmail(email) {
+  try {
+    return await auth.getUserByEmail(email);
+  } catch (err) {
+    if (err.code === 'auth/user-not-found') return null;
+    throw err;
+  }
+}
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const normEmail = (value) => String(value || '').trim().toLowerCase();
@@ -104,24 +114,28 @@ router.get('/coaches', async (req, res) => {
     throw err;
   }
 
-  const list = await loadAllowlist();
-
   users.sort((a, b) =>
     new Date(b.metadata.lastSignInTime || 0) - new Date(a.metadata.lastSignInTime || 0));
 
   const start = (page - 1) * PAGE_SIZE;
   const slice = users.slice(start, start + PAGE_SIZE);
 
+  // The plan shown is the one that actually decides access — the coach's own
+  // record — not the allowlist entry that may or may not have been applied yet.
   const coaches = await Promise.all(slice.map(async (u) => {
-    const count = await studentsCol(u.uid).count().get();
-    const email = normEmail(u.email);
+    const [count, userSnap] = await Promise.all([
+      studentsCol(u.uid).count().get(),
+      db.collection('users').doc(u.uid).get(),
+    ]);
+    const state = planState(userSnap.exists ? userSnap.data() : null, { uid: u.uid });
     return {
       uid: u.uid,
       email: u.email || null,
       displayName: u.displayName || null,
       studentCount: count.data().count,
       lastActive: u.metadata.lastSignInTime || null,
-      plan: list.plans.get(email) || 'free',
+      plan: state.plan,
+      phase: state.phase,
     };
   }));
 
@@ -156,7 +170,7 @@ router.post('/allowlist', async (req, res) => {
     throw badRequest('A valid email address is required');
   }
 
-  const plan = String(req.body?.plan || 'trial').trim().toLowerCase();
+  const plan = String(req.body?.plan || 'monthly').trim().toLowerCase();
   if (!PLANS.includes(plan)) throw badRequest(`plan must be one of: ${PLANS.join(', ')}`);
 
   const paidUntil = String(req.body?.paid_until || req.body?.paidUntil || '').trim();
@@ -175,8 +189,16 @@ router.post('/allowlist', async (req, res) => {
   }, { merge: true });
 
   invalidateAllowlist();
+
+  // Adding a coach is how the owner activates them. If they have already
+  // signed up, switch them on now; if not, ensureProfile picks the entry up on
+  // their first sign-in.
+  const user = await userForEmail(email);
+  if (user) await grantPlan(user.uid, { plan, paidUntil });
+
   res.status(201).json({
     entry: { email, plan, paid_until: paidUntil || null, added_by: req.uid },
+    activated: Boolean(user),
   });
 });
 
@@ -189,6 +211,12 @@ router.delete('/allowlist/:email', async (req, res) => {
 
   await ref.delete();
   invalidateAllowlist();
+
+  // Removing is the inverse of adding: the coach goes back to read-only. Their
+  // clients and history are untouched.
+  const user = await userForEmail(email);
+  if (user) await revokePlan(user.uid);
+
   res.status(204).end();
 });
 
