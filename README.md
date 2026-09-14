@@ -2,8 +2,7 @@
 
 **AI that sends the message you keep putting off.**
 
-Built for the Gen AI Academy Competition 2026 · [Live Demo](https://personal-gemini-journal-359006588697.asia-southeast1.run.app) · [Website](https://shiftedtech.github.io/remindclient/)
-
+Built for the Gen AI Academy Competition 2026 · [Live Demo](https://personal-gemini-journal-359006588697.asia-southeast1.run.app) · 
 ---
 
 ## Overview
