@@ -194,153 +194,165 @@
         <!-- OVERVIEW — the single place a student is viewed and edited -->
         <section id="tab-overview" class="tab-panel" role="tabpanel">
           <form id="overview-form" class="ov" novalidate>
-            <header class="ov-head">
-              <h2 class="ov-title">Client Overview</h2>
-            </header>
-
             <p id="ov-error" class="error" role="alert" hidden></p>
 
             <!-- 1 · CLIENT DETAILS -->
-            <section class="ov-block">
-              <h3 class="ov-h">Client details</h3>
-              <div class="ov-grid">
-                <label class="field"><span class="field-label">Name *</span>
-                  <input name="name" required maxlength="120"></label>
-                <label class="field"><span class="field-label">Phone</span>
-                  <input name="studentPhone" placeholder="9123 4567"></label>
-                <label class="field"><span class="field-label">Payer name</span>
-                  <input name="payerName" maxlength="120" placeholder="Parent / guardian"></label>
-                <label class="field"><span class="field-label">Payer phone</span>
-                  <input name="payerPhone" placeholder="Leave blank if same"></label>
-              </div>
-            </section>
-
-            <hr class="ov-rule">
-
-            <!-- 2 · LESSON SCHEDULE -->
-            <section class="ov-block">
-              <div class="ov-h-row">
-                <h3 class="ov-h">Lesson schedule</h3>
-                <button id="add-lesson-btn" class="btn btn-primary-outline btn-sm" type="button">
-                  + Add Lesson
-                </button>
-              </div>
-
-              <div id="lessons" class="lessons"></div>
-
-              <p id="lessons-empty" class="ov-note" hidden>
-                No lessons yet — add one so this client appears on the calendar.
-              </p>
-              <p id="lessons-max" class="ov-note" hidden>Maximum 10 lessons</p>
-            </section>
-
-            <hr class="ov-rule">
-
-            <!-- 3 · AUTO REMINDERS -->
-            <section class="ov-block">
-              <div class="ov-h-row">
-                <h3 class="ov-h">Auto reminders</h3>
-                <span class="ov-note">2 max · repeats weekly</span>
-              </div>
-
-              <div id="reminders" class="rems"></div>
-
-              <p id="rem-nolink" class="connect-warn" hidden>
-                Reminders only send once this client is connected to Telegram.
-              </p>
-            </section>
-
-            <hr class="ov-rule">
-
-            <!-- 4 · TELEGRAM CONNECTION -->
-            <section class="ov-block">
-              <h3 class="ov-h">Telegram connection</h3>
-
-              <!-- not yet linked -->
-              <div id="connect-actions" class="connect-actions">
-                <a id="tg-invite-btn" class="btn btn-primary" target="_blank" rel="noopener">📲 Send Telegram Link</a>
-                <button id="tg-copy-btn" class="btn btn-primary-outline" type="button">📋 Copy Link</button>
-              </div>
-              <p id="connect-nophone" class="connect-warn" hidden>
-                No payer phone on file — add one above to send the invite directly, or copy the link and send it yourself.
-              </p>
-              <p id="connect-help" class="connect-help">
-                Send this to your student or parent. When they tap Start in Telegram,
-                they'll be connected here automatically.
-              </p>
-
-              <!-- already linked -->
-              <div id="connect-linked" class="connect-linked" hidden>
-                <span class="connect-who">
-                  <span id="connect-ok-line" class="connect-ok">✅ Connected to Telegram</span>
-                  <span id="connect-warn" class="connect-warn" hidden></span>
-                </span>
-                <span class="connect-btns">
-                  <button id="ov-draft" class="btn btn-primary-outline btn-sm" type="button">Draft in AI Chat →</button>
-                  <button id="tg-disconnect-btn" class="btn btn-ghost btn-sm" type="button">Disconnect</button>
-                </span>
-              </div>
-
-              <div class="ov-actions">
-                <button id="send-tg-btn" class="btn btn-primary-outline btn-sm" type="button">Send via Telegram</button>
-                <span class="ov-note">Sends a payment reminder to the linked chat now.</span>
-              </div>
-            </section>
-
-            <hr class="ov-rule">
-
-            <!-- 5 · PAYMENT TRACKING -->
-            <section class="ov-block">
-              <h3 class="ov-h">Payment tracking</h3>
-              <div class="ov-grid">
-                <label class="field"><span class="field-label">Fee</span>
-                  <input name="feeAmount" type="number" min="0" step="0.01" placeholder="0.00"></label>
-                <label class="field"><span class="field-label">Currency</span>
-                  <input name="feeCurrency" maxlength="3"></label>
-                <label class="field"><span class="field-label">Status</span>
-                  <select name="paymentStatus">
-                    <option value="unpaid">Unpaid</option>
-                    <option value="paid">Paid</option>
-                    <option value="overdue">Overdue</option>
-                    <!-- Set by the bot, not chosen here, but listed so saving a
-                         student mid-review does not drop them back to unpaid. -->
-                    <option value="pending_verification">Pending verification</option>
-                  </select></label>
-                <label class="field"><span class="field-label">Last paid</span>
-                  <input name="lastPaidDate" type="date"></label>
-              </div>
-
-              <div id="verify-block" hidden>
-                <div class="verify-card">
-                  <h3 class="verify-title">🔔 Payment verification pending</h3>
-                  <p id="verify-claim" class="verify-claim"></p>
-                  <p id="verify-meta" class="verify-meta"></p>
-                  <div class="ov-actions">
-                    <button id="verify-view" class="btn btn-ghost btn-sm" type="button" hidden>📸 View Receipt</button>
-                    <button id="verify-confirm" class="btn btn-primary btn-sm" type="button">✅ Confirm</button>
-                    <button id="verify-reject" class="btn btn-danger btn-sm" type="button">❌ Reject</button>
-                  </div>
+            <details class="ov-box" open>
+              <summary class="ov-box-h">
+                <span>Client details</span>
+                <svg class="ov-box-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </summary>
+              <div class="ov-box-body">
+                <div class="ov-grid">
+                  <label class="field"><span class="field-label">Name *</span>
+                    <input name="name" required maxlength="120"></label>
+                  <label class="field"><span class="field-label">Phone</span>
+                    <input name="studentPhone" placeholder="9123 4567"></label>
+                  <label class="field"><span class="field-label">Payer name</span>
+                    <input name="payerName" maxlength="120" placeholder="Parent / guardian"></label>
+                  <label class="field"><span class="field-label">Payer phone</span>
+                    <input name="payerPhone" placeholder="Leave blank if same"></label>
                 </div>
               </div>
+            </details>
 
-              <div class="ov-actions">
-                <button id="mark-paid-btn" class="btn btn-primary btn-sm" type="button">Mark as Paid</button>
+            <!-- 2 · LESSON SCHEDULE -->
+            <details class="ov-box" open>
+              <summary class="ov-box-h">
+                <span>Lesson schedule</span>
+                <svg class="ov-box-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </summary>
+              <div class="ov-box-body">
+                <div class="ov-box-actions">
+                  <button id="add-lesson-btn" class="btn btn-primary-outline btn-sm" type="button">
+                    + Add Lesson
+                  </button>
+                </div>
+
+                <div id="lessons" class="lessons"></div>
+
+                <p id="lessons-empty" class="ov-note" hidden>
+                  No lessons yet — add one so this client appears on the calendar.
+                </p>
+                <p id="lessons-max" class="ov-note" hidden>Maximum 10 lessons</p>
               </div>
-            </section>
+            </details>
 
-            <hr class="ov-rule">
+            <!-- 3 · AUTO REMINDERS -->
+            <details class="ov-box" open>
+              <summary class="ov-box-h">
+                <span>Auto reminders</span>
+                <svg class="ov-box-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </summary>
+              <div class="ov-box-body">
+                <p class="ov-note ov-box-hint">2 max · repeats weekly</p>
+
+                <div id="reminders" class="rems"></div>
+
+                <p id="rem-nolink" class="connect-warn" hidden>
+                  Reminders only send once this client is connected to Telegram.
+                </p>
+              </div>
+            </details>
+
+            <!-- 4 · TELEGRAM CONNECTION -->
+            <details class="ov-box" open>
+              <summary class="ov-box-h">
+                <span>Telegram connection</span>
+                <svg class="ov-box-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </summary>
+              <div class="ov-box-body">
+                <!-- not yet linked -->
+                <div id="connect-actions" class="connect-actions">
+                  <a id="tg-invite-btn" class="btn btn-primary" target="_blank" rel="noopener">📲 Send Telegram Link</a>
+                  <button id="tg-copy-btn" class="btn btn-primary-outline" type="button">📋 Copy Link</button>
+                </div>
+                <p id="connect-nophone" class="connect-warn" hidden>
+                  No payer phone on file — add one above to send the invite directly, or copy the link and send it yourself.
+                </p>
+                <p id="connect-help" class="connect-help">
+                  Send this to your student or parent. When they tap Start in Telegram,
+                  they'll be connected here automatically.
+                </p>
+
+                <!-- already linked -->
+                <div id="connect-linked" class="connect-linked" hidden>
+                  <span class="connect-who">
+                    <span id="connect-ok-line" class="connect-ok">✅ Connected to Telegram</span>
+                    <span id="connect-warn" class="connect-warn" hidden></span>
+                  </span>
+                  <span class="connect-btns">
+                    <button id="ov-draft" class="btn btn-primary-outline btn-sm" type="button">Draft in AI Chat →</button>
+                    <button id="tg-disconnect-btn" class="btn btn-ghost btn-sm" type="button">Disconnect</button>
+                  </span>
+                </div>
+
+                <div class="ov-actions">
+                  <button id="send-tg-btn" class="btn btn-primary-outline btn-sm" type="button">Send via Telegram</button>
+                  <span class="ov-note">Sends a payment reminder to the linked chat now.</span>
+                </div>
+              </div>
+            </details>
+
+            <!-- 5 · PAYMENT TRACKING -->
+            <details class="ov-box" open>
+              <summary class="ov-box-h">
+                <span>Payment tracking</span>
+                <svg class="ov-box-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </summary>
+              <div class="ov-box-body">
+                <div class="ov-grid">
+                  <label class="field"><span class="field-label">Fee</span>
+                    <input name="feeAmount" type="number" min="0" step="0.01" placeholder="0.00"></label>
+                  <label class="field"><span class="field-label">Currency</span>
+                    <input name="feeCurrency" maxlength="3"></label>
+                  <label class="field"><span class="field-label">Status</span>
+                    <select name="paymentStatus">
+                      <option value="unpaid">Unpaid</option>
+                      <option value="paid">Paid</option>
+                      <option value="overdue">Overdue</option>
+                      <!-- Set by the bot, not chosen here, but listed so saving a
+                           student mid-review does not drop them back to unpaid. -->
+                      <option value="pending_verification">Pending verification</option>
+                    </select></label>
+                  <label class="field"><span class="field-label">Last paid</span>
+                    <input name="lastPaidDate" type="date"></label>
+                </div>
+
+                <div id="verify-block" hidden>
+                  <div class="verify-card">
+                    <h3 class="verify-title">🔔 Payment verification pending</h3>
+                    <p id="verify-claim" class="verify-claim"></p>
+                    <p id="verify-meta" class="verify-meta"></p>
+                    <div class="ov-actions">
+                      <button id="verify-view" class="btn btn-ghost btn-sm" type="button" hidden>📸 View Receipt</button>
+                      <button id="verify-confirm" class="btn btn-primary btn-sm" type="button">✅ Confirm</button>
+                      <button id="verify-reject" class="btn btn-danger btn-sm" type="button">❌ Reject</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="ov-actions">
+                  <button id="mark-paid-btn" class="btn btn-primary btn-sm" type="button">Mark as Paid</button>
+                </div>
+              </div>
+            </details>
 
             <!-- 6 · NOTES -->
-            <section class="ov-block">
-              <h3 class="ov-h">Notes</h3>
-              <label class="field"><span class="field-label">Notes</span>
-                <textarea name="notes" rows="3" maxlength="2000"
-                  placeholder="Prefers evening lessons, pays monthly…"></textarea></label>
-            </section>
+            <details class="ov-box" open>
+              <summary class="ov-box-h">
+                <span>Notes</span>
+                <svg class="ov-box-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </summary>
+              <div class="ov-box-body">
+                <!-- The box heading already says "Notes" — aria-label carries the
+                     name for a screen reader without printing it a second time. -->
+                <textarea name="notes" rows="3" maxlength="2000" aria-label="Notes"
+                  placeholder="Prefers evening lessons, pays monthly…"></textarea>
+              </div>
+            </details>
 
-            <hr class="ov-rule">
-
-            <!-- 7 · ACTIONS — Save sits at the end of the form it saves. -->
+            <!-- 7 · ACTIONS — Save sits at the end of the form it saves, outside every box. -->
             <div class="ov-foot">
               <button id="ov-save" class="btn btn-primary" type="submit" disabled>Save Changes</button>
               <button id="delete-student-btn" class="btn btn-danger" type="button">Delete Client</button>

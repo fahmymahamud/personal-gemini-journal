@@ -183,7 +183,7 @@ function buildSteps(ctx) {
         + 'burns the old invite so it cannot be reused.',
     },
     {
-      el: () => document.querySelector('#tab-overview .ov-block:has(#mark-paid-btn) .ov-grid')
+      el: () => document.querySelector('#tab-overview .ov-box:has(#mark-paid-btn) .ov-grid')
         || document.querySelector('#mark-paid-btn'),
       title: 'Payment tracking',
       body: 'The fee, the currency, the status and when they last paid. '

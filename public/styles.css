@@ -1061,9 +1061,10 @@ textarea { resize: vertical; line-height: 1.5; }
   .day-side { grid-column: 1 / -1; justify-content: space-between; }
   /* One column: two fields side by side in a phone-width card leaves neither
      enough room for a real value. */
-  .ov { padding: 16px; gap: 16px; }
+  .ov { gap: 16px; }
   .ov-grid, .rem-fields, .lesson-fields { grid-template-columns: 1fr; }
-  .ov-head { position: sticky; top: 0; z-index: 1; }
+  .ov-box-h { padding: 16px 18px; font-size: 18px; }
+  .ov-box-body { padding: 16px 18px 18px; }
   /* The trash button would otherwise sit alone in a tall second column beside
      three stacked fields. */
   .lesson-row { grid-template-columns: minmax(0, 1fr); }
@@ -1079,31 +1080,49 @@ textarea { resize: vertical; line-height: 1.5; }
 }
 
 /* ═══════════════ overview editor ═══════════════ */
-/* One card holding the whole record, sections divided by hairlines rather than
-   by nested boxes — a box per section reads as five separate things to save,
-   when there is only ever one Save. */
-.ov {
-  display: flex; flex-direction: column; gap: 18px;
-  padding: 22px;
+/* Six independent cards, one per concern, in place of one long card with
+   hairline dividers — each can be read from its heading alone and opened
+   only when there is something in it to change. */
+.ov { display: flex; flex-direction: column; gap: 20px; }
+
+/* <details>/<summary> carries the collapse for free: no JS, no state to
+   track, and a screen reader announces the expanded/collapsed state on its
+   own. All six start open, since that was the only state before this. */
+.ov-box {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); box-shadow: var(--shadow-card);
 }
-.ov-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.ov-title { font-family: var(--font-head); font-size: 20px; font-weight: 700; }
-.ov-block { display: flex; flex-direction: column; gap: 14px; }
-.ov-h {
-  font-size: 12px; font-weight: 600; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--text-secondary);
+.ov-box-h {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 20px 22px;
+  font-family: var(--font-head); font-size: 20px; font-weight: 700;
+  cursor: pointer; list-style: none;
+  transition: background var(--ease);
 }
-.ov-h-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.ov-box-h::-webkit-details-marker { display: none; }
+.ov-box-h:hover { background: var(--hover); }
+.ov-box-chevron { flex: 0 0 auto; color: var(--text-secondary); transition: transform 0.18s ease; }
+.ov-box[open] .ov-box-chevron { transform: rotate(180deg); }
+
+.ov-box-body {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 18px 22px 22px;
+  border-top: 1px solid var(--border);
+}
+/* A right-aligned action or note that used to sit beside the heading now
+   sits at the top of the content it belongs to, so a closed box shows
+   nothing but its name. */
+.ov-box-actions { display: flex; justify-content: flex-end; }
+.ov-box-hint { margin: -4px 0 0; text-align: right; }
+
 .ov-note { color: var(--text-secondary); font-size: 12px; }
 .ov-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.ov-rule { height: 1px; margin: 2px 0; border: 0; background: var(--border); }
 .ov-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .ov-danger { display: flex; }
 
-/* Save sits at the end of the form it saves, with the one irreversible action
-   pushed to the far side so the two are never adjacent under a thumb. */
+/* Save sits at the end of the form it saves, outside every box, with the one
+   irreversible action pushed to the far side so the two are never adjacent
+   under a thumb. */
 .ov-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
 /* ── lesson schedule ── */
