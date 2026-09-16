@@ -86,7 +86,9 @@
 [hidden] { display: none !important; }
 
 html, body { height: 100%; }
-html { scroll-behavior: smooth; }
+/* An app, not a document: no rubber-band bounce dragging the whole shell
+   around, and no iOS text inflation on rotate. */
+html { scroll-behavior: smooth; overscroll-behavior: none; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 ::selection { background: rgba(0, 122, 61, 0.22); }
 
 body {
@@ -279,12 +281,16 @@ textarea { resize: vertical; line-height: 1.5; }
 #auth-error { margin-top: 16px; }
 
 /* ═══════════════ APP SHELL ═══════════════ */
-.app { display: flex; flex-direction: column; height: 100dvh; }
+/* Pinned to the viewport. Each pane scrolls inside itself, so the page never
+   does — nothing can drag the shell sideways or bounce it on a phone. */
+.app { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
 
 .navbar {
-  display: flex; align-items: center; justify-content: space-between;
-  height: var(--nav-h); flex: 0 0 var(--nav-h);
-  padding: 0 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  /* Installed on an iPhone the page runs under the status bar
+     (black-translucent), so the bar grows by the notch and keeps its content below it. */
+  height: calc(var(--nav-h) + env(safe-area-inset-top)); flex: 0 0 auto;
+  padding: env(safe-area-inset-top) 16px 0;
 
   /* Chrome, not content: the bar re-declares the surface tokens so the
      wordmark, ghost buttons and admin tag inside it invert on their own. */
@@ -308,6 +314,7 @@ textarea { resize: vertical; line-height: 1.5; }
   border-bottom: 1px solid var(--border);
 }
 .nav-right { display: flex; align-items: center; gap: 10px; }
+.admin-icon { display: none; }
 .avatar {
   display: grid; place-items: center;
   width: 32px; height: 32px; border-radius: 50%;
@@ -320,7 +327,7 @@ textarea { resize: vertical; line-height: 1.5; }
 .layout { flex: 1; display: flex; min-height: 0; }
 
 /* ── sidebar ── */
-/* Three bands: the head and foot are pinned, only the middle scrolls. The
+/* Two bands: the head is pinned, only the list below it scrolls. The
    column itself must not scroll, hence overflow:hidden here. */
 .sidebar {
   display: flex; flex-direction: column;
@@ -352,22 +359,21 @@ textarea { resize: vertical; line-height: 1.5; }
 .side-top { flex: 0 0 auto; display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 12px; }
 .side-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 16px 12px; }
 .side-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.side-title { font-size: 18px; font-weight: 600; }
+/* kept under the 17px wordmark so the brand stays the largest type on the page */
+.side-title { font-size: 15px; font-weight: 600; }
 
 .search-wrap { position: relative; }
 .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); pointer-events: none; }
 .search { padding-left: 34px; }
 .sidebar .search::-webkit-search-cancel-button { filter: invert(0.7); }
 
-.student-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+/* One line per client, so twenty fit without scrolling on a laptop screen. */
+.student-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
 .student {
   position: relative; overflow: hidden;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 2px 16px;
-  padding: 16px 16px 16px 18px;
-  background: var(--surface-subtle);
-  border: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 5px 12px 5px 14px;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background var(--ease), border-color var(--ease);
@@ -388,12 +394,9 @@ textarea { resize: vertical; line-height: 1.5; }
 .student.is-selected::before { transform: scaleX(1); }
 
 /* Names are user data and can be any length — every one of them truncates. */
-.student-name { font-weight: 600; font-size: 15px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.student-payer { grid-column: 1; min-width: 0; color: var(--text-secondary); font-size: 13px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.student .chip { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.student-name { font-weight: 500; font-size: 13.5px; line-height: 1.35; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* ── status chips ── */
+/* ── chips ── */
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 4px 12px;
@@ -401,43 +404,8 @@ textarea { resize: vertical; line-height: 1.5; }
   font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
   white-space: nowrap;
 }
-/* The dot carries the status colour a second time, so the state survives a
-   glance that never reaches the word. */
 .chip::before { content: '●'; font-size: 8px; line-height: 1; }
-.chip-lg { padding: 6px 14px; font-size: 13px; }
 
-/* Solid tinted pills rather than alpha washes: these appear on the dark rail
-   and on white cards, and a tint that reads on one is invisible on the other. */
-.chip-paid    { background: var(--success-soft); color: var(--success-text); border-color: var(--success-line); }
-.chip-unpaid  { background: var(--warning-soft); color: var(--warning-text); border-color: var(--warning-line); }
-.chip-overdue { background: var(--danger-soft);  color: var(--danger-text);  border-color: var(--danger-line);
-  animation: chip-pulse 2.4s ease-in-out infinite; }
-/* Waiting on the coach, not on the payer — so it breathes rather than pulses:
-   an alarm is the wrong note for something already dealt with. */
-.chip-pending_verification {
-  background: #000000; color: #FFFFFF; border-color: #000000;
-}
-.chip-pending_verification::before { animation: chip-breathe 1.8s ease-in-out infinite; }
-@keyframes chip-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-
-/* Only overdue pulses — if everything moved, nothing would stand out. */
-@keyframes chip-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(206, 17, 38, 0); }
-  50%      { box-shadow: 0 0 0 4px rgba(206, 17, 38, 0.22); }
-}
-
-
-/* sidebar footer — always on screen, never scrolls away with the list */
-.side-foot { flex: 0 0 auto; padding: 12px 16px; border-top: 1px solid var(--border); }
-.foot-actions { display: flex; gap: 8px; }
-/* flex, not a 2-up grid: when the install button is hidden because the browser
-   cannot install the app, My Calendar takes the whole row instead of half. */
-.foot-actions .btn {
-  flex: 1; min-width: 0;
-  padding: 8px 6px; font-size: 11.5px; line-height: 1.25;
-  white-space: normal; text-align: center;
-}
-.foot-hint { margin: 8px 0 0; color: var(--text-secondary); font-size: 11px; text-align: center; line-height: 1.4; }
 
 .main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
@@ -809,6 +777,11 @@ textarea { resize: vertical; line-height: 1.5; }
 .sub-actions { display: flex; flex-direction: column; }
 .sub-help { margin: 7px 0 16px; color: var(--text-secondary); font-size: 11.5px; text-align: center; }
 .sub-foot { margin: 2px 0 0; color: var(--text-secondary); font-size: 12px; text-align: center; line-height: 1.5; }
+/* Settings: one block per concern, ruled apart the same way as the dialog foot. */
+.settings-section { padding-bottom: 20px; }
+.settings-section + .settings-section { padding-top: 20px; border-top: 1px solid var(--border); }
+.settings-section .dialog-sub { margin-bottom: 14px; }
+.settings-section .sub-help:last-child { margin-bottom: 0; }
 .btn-ghost.is-copied { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-text); }
 
 /* ═══════════════ LESSON DAY PICKER ═══════════════ */
@@ -900,7 +873,7 @@ textarea { resize: vertical; line-height: 1.5; }
 @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 
 .skeleton-list { display: flex; flex-direction: column; gap: 8px; }
-.skel-student { height: 72px; }
+.skel-student { height: 30px; }
 .skel-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
 .skel-cell { height: 80px; }
 
@@ -1017,18 +990,39 @@ textarea { resize: vertical; line-height: 1.5; }
   .btn, .icon-btn, .chip-action, .suggestion, .type-btn,
   input, select, textarea { min-height: 44px; }
   .icon-btn { width: 44px; }
+
+  /* The top bar gets one phone's width. The calendar button repeats the tab
+     bar below and the avatar is decoration, so both step aside, Admin shrinks
+     to an icon, and the buttons trade 4px of width (never height) to fit. */
+  .navbar { padding-left: 12px; padding-right: 12px; }
+  .navbar .wordmark { font-size: 15px; }
+  .nav-right { gap: 4px; }
+  #nav-calendar-btn, .avatar { display: none; }
+  .navbar .icon-btn, #admin-link { width: 40px; padding: 0; }
+  .admin-icon { display: block; }
+  .admin-label { display: none; }
+
+  /* iOS zooms into any field under 16px on focus and leaves the page zoomed. */
+  input, select, textarea { font-size: 16px; }
+
   /* except the pills packed inside a 60px calendar cell */
   .cal-pill { min-height: 0; }
   /* the day picker's target is the visible pill, not the checkbox over it */
   .day-pill span { min-height: 44px; display: flex; align-items: center; justify-content: center; }
 
+  /* the client rail is the whole page here, so its rows get the same thumb target */
+  .student { min-height: 44px; }
+
   /* clear of the home indicator on a notched iPhone */
-  .side-foot { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .side-scroll { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
   .toast { bottom: calc(16px + var(--tabbar-h) + env(safe-area-inset-bottom)); }
-  .day-wrap { padding-bottom: env(safe-area-inset-bottom); }
+  .day-wrap { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
 
   /* calendar: same 7-column grid, smaller cells; the legend drops to its own row */
   .cal-head { flex-wrap: wrap; padding: 12px 14px; }
+  /* The title takes the free space, so the arrows sit at the two edges. With
+     the spacer also sharing it, the title squeezed onto two lines. */
+  .cal-head .spacer { display: none; }
   .cal-title { flex: 1; min-width: 0; font-size: 15px; }
   .cal-legend { flex-basis: 100%; justify-content: center; gap: 12px; }
   .cal-body { padding: 12px 14px 20px; }
@@ -1188,7 +1182,7 @@ textarea { resize: vertical; line-height: 1.5; }
 
 /* ── dropdown panel ── */
 .verify-panel {
-  position: absolute; top: calc(var(--nav-h) - 4px); right: 12px; z-index: 30;
+  position: absolute; top: calc(var(--nav-h) + env(safe-area-inset-top) - 4px); right: 12px; z-index: 30;
   width: min(420px, calc(100vw - 24px));
   max-height: min(70dvh, 560px); overflow-y: auto;
   background: var(--surface); border: 1px solid var(--border);

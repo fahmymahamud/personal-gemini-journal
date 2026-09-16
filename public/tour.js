@@ -48,6 +48,7 @@ function buildSteps(ctx) {
       title: 'Clients and Calendar',
       body: 'Switches the main area between your client list and the month calendar. '
         + 'It stays lit while the calendar is showing.',
+      absent: 'On a phone, the Clients and Calendar tabs along the bottom switch between the two.',
       before: () => setView('students'),
     },
     {
@@ -61,9 +62,9 @@ function buildSteps(ctx) {
     },
     {
       el: '#settings-btn',
-      title: 'Settings — your own Telegram',
-      body: 'Connect your personal Telegram here. Once linked, payment claims arrive '
-        + 'in your chat with Confirm and Reject buttons, so you can settle them from your phone.',
+      title: 'Settings',
+      body: 'Connect your own Telegram to confirm payment claims from your phone, '
+        + 'add the app to your home screen, and subscribe to your lesson calendar.',
     },
     {
       el: '#admin-link',
@@ -82,7 +83,7 @@ function buildSteps(ctx) {
     {
       el: '.sidebar',
       title: 'Your clients',
-      body: 'Every client you track, with their payment state at a glance. '
+      body: 'Every client you track, one name per line. '
         + 'Selecting one opens their full record beside it.',
       before: () => { setView('students'); ctx.showList(); },
       place: 'right',
@@ -97,27 +98,6 @@ function buildSteps(ctx) {
       el: '#student-search',
       title: 'Search',
       body: 'Filters the list as you type. Useful once you are past a dozen clients.',
-    },
-    {
-      el: () => document.querySelector('#student-list .student .chip'),
-      title: 'Payment status',
-      body: 'Green is Paid, red Overdue, grey Due, and black means a parent has claimed '
-        + 'payment and is waiting on your confirmation.',
-      absent: 'Each client row carries a status chip: green Paid, red Overdue, grey Due, '
-        + 'and black for a payment claim awaiting your confirmation. Add a client and one appears.',
-    },
-    {
-      el: '#calendar-btn',
-      title: 'My Calendar',
-      body: 'Gives you a subscribe link for your own calendar app, so every lesson shows '
-        + 'up in the calendar you already use.',
-    },
-    {
-      el: '#install-btn',
-      title: 'Add to Home Screen',
-      body: 'Installs the app so it opens like any other on your phone.',
-      absent: 'On a phone, an “Add to Home Screen” button sits beside My Calendar and '
-        + 'installs the app. Your browser is not offering it here.',
     },
 
     /* ── the client record ── */

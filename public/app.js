@@ -200,15 +200,11 @@ function renderStudents() {
     li.tabIndex = 0;
     li.setAttribute('role', 'button');
 
+    // Name only: the rail is an index, and payer and status live on the Overview.
     const name = document.createElement('span');
     name.className = 'student-name';
     name.textContent = s.name;
-
-    const payer = document.createElement('span');
-    payer.className = 'student-payer';
-    payer.textContent = s.payerName || 'Pays for themselves';
-
-    li.append(name, payer, statusChip(s));
+    li.append(name);
 
     // Searching is how a coach looks a student up, so a hit goes straight to
     // that student's Overview instead of merely toggling the row.
@@ -221,16 +217,6 @@ function renderStudents() {
   }));
 
   setStudentsState(state.students.length ? 'list' : 'empty');
-}
-
-const STATUS_LABEL = { paid: 'Paid', unpaid: 'Due', overdue: 'Overdue', pending_verification: 'Pending' };
-
-function statusChip(student, large = false) {
-  const status = student.paymentStatus || 'unpaid';
-  const chip = document.createElement('span');
-  chip.className = `chip chip-${status}${large ? ' chip-lg' : ''}`;
-  chip.textContent = STATUS_LABEL[status] || status;
-  return chip;
 }
 
 $('#student-search').addEventListener('input', renderStudents);
