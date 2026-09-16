@@ -578,8 +578,12 @@ textarea { resize: vertical; line-height: 1.5; }
 }
 .tabbar-btn {
   position: relative;
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px;
   min-height: 44px;
+  /* Sits on the safe-area padding rather than centred in the bar above it —
+     centred left a band of dead space between the label and the home
+     indicator that read as the whole tab bar sitting too high. */
+  padding-bottom: 8px;
   background: none; border: 0; color: var(--text-secondary);
   font: 600 11px var(--font-body); cursor: pointer; transition: color var(--ease);
 }
