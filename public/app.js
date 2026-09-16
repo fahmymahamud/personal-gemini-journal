@@ -123,8 +123,8 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  const label = user.displayName || user.email || '';
-  $('#who').textContent = label;
+  // UI polish 1: the header no longer shows the #who name label — the avatar's
+  // initials identify the coach — so there is nothing to write it into here.
   $('#avatar').textContent = initials(user.displayName || user.email);
   $('#password').value = '';
   // The calendar is the landing view: a coach opening the app wants today's
