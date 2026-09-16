@@ -28,7 +28,9 @@
   --surface: #FFFFFF;         /* cards, dialogs, calendar cells */
   --surface-subtle: #F6F6F6;  /* insets sitting on a white surface */
   --field-bg: #FFFFFF;        /* input ground */
-  --sidebar: #000000;         /* the chrome rail */
+  --sidebar: #000000;         /* the top bar */
+  --sidebar-fill: #242424;    /* the client-list rail — a step lighter than the
+                                  top bar so the two read as separate surfaces */
   --hover: #F0F0F0;
 
   --text-primary: #000000;
@@ -354,7 +356,7 @@ textarea { resize: vertical; line-height: 1.5; }
   --accent-soft: rgba(0, 122, 61, 0.30);
   --accent-line: rgba(0, 122, 61, 0.62);
   --mark: #FF6B7C;
-  background: var(--sidebar);
+  background: var(--sidebar-fill);
   color: var(--text-primary);
   border-right: 1px solid var(--border);
   overflow: hidden;
