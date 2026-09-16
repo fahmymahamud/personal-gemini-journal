@@ -12,7 +12,7 @@ const state = {
   students: [],
   selectedId: null,
   /** 'students' | 'calendar' — which view owns the main column. */
-  view: 'calendar',
+  view: 'students',
   /** First of the month currently drawn in the calendar grid. */
   calMonth: startOfMonth(new Date()),
   /** 'YYYY-MM-DD' of the open day panel, or null. */
@@ -112,7 +112,7 @@ onAuthStateChanged(auth, async (user) => {
     state.usage = null;
     state.plan = null;
     $('#trial-bar').hidden = true;
-    state.view = 'calendar';
+    state.view = 'students';
     state.calDay = null;
     state.calMonth = startOfMonth(new Date());
     feedUrl = null;
@@ -127,12 +127,13 @@ onAuthStateChanged(auth, async (user) => {
   // initials identify the coach — so there is nothing to write it into here.
   $('#avatar').textContent = initials(user.displayName || user.email);
   $('#password').value = '';
-  // The calendar is the landing view: a coach opening the app wants today's
-  // schedule, not an empty "select a student" panel. Painted first, with
-  // skeletons, so the shell is on screen while the fetches are still in flight.
+  // The client list is the landing view: a coach opening the app is almost
+  // always about to pick someone and adjust a reminder, not browse the month.
+  // Painted first, with skeletons, so the shell is on screen while the
+  // fetches are still in flight.
   state.calMonth = startOfMonth(new Date());
   state.loadingStudents = true;
-  setView('calendar');
+  setView('students');
 
   await Promise.all([loadPlan(), loadStudents(), loadEvents(), loadUsage(),
     revealAdminLink(), loadPending()]);
