@@ -780,6 +780,9 @@ textarea { resize: vertical; line-height: 1.5; }
 .sub-actions { display: flex; flex-direction: column; }
 .sub-help { margin: 7px 0 16px; color: var(--text-secondary); font-size: 11.5px; text-align: center; }
 .sub-foot { margin: 2px 0 0; color: var(--text-secondary); font-size: 12px; text-align: center; line-height: 1.5; }
+/* UI polish 3: the dialog's own heading, ruled off from the sections below so
+   it reads as the title rather than a heading stacked on "Notifications". */
+.settings-title { padding-bottom: 16px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
 /* Settings: one block per concern, ruled apart the same way as the dialog foot. */
 .settings-section { padding-bottom: 20px; }
 .settings-section + .settings-section { padding-top: 20px; border-top: 1px solid var(--border); }
