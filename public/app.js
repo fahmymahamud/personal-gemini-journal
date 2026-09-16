@@ -1385,8 +1385,11 @@ const entryId = (entry) => (entry.kind === 'event'
 
 // A month cell has room for a time and, at a push, a venue — the name would
 // only ellipsise away. The day modal is where the detail lives.
+// UI polish 4: with no time, the venue stands alone — a bare "— · Online"
+// read as broken. The dash is only for an entry with neither.
 function pillLabel(time, location) {
-  return location ? `${time || '—'} · ${location}` : (time || '—');
+  if (time && location) return `${time} · ${location}`;
+  return time || location || '—';
 }
 
 function makePill(entry, key) {
