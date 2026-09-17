@@ -64,7 +64,8 @@ function buildSteps(ctx) {
       el: '#settings-btn',
       title: 'Settings',
       body: 'Connect your own Telegram to confirm payment claims from your phone, '
-        + 'add the app to your home screen, and subscribe to your lesson calendar.',
+        + 'add the app to your home screen, subscribe to your lesson calendar, '
+        + 'and sign out when you are done — it all lives here now.',
     },
     {
       el: '#admin-link',
@@ -72,11 +73,6 @@ function buildSteps(ctx) {
       body: 'Opens the admin dashboard — coach totals, usage and the access list.',
       absent: 'An Admin link sits here for administrator accounts only. Yours is not one, '
         + 'so it stays hidden.',
-    },
-    {
-      el: '#signout-btn',
-      title: 'Sign out',
-      body: 'Ends your session. Your clients and their history stay where they are.',
     },
 
     /* ── the client rail ── */
