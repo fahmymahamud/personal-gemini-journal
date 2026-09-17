@@ -2,6 +2,7 @@ import 'dotenv/config';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
+import helmet from 'helmet';
 
 import { requireAuth } from './src/auth.js';
 import configRoutes from './src/routes/config.js';
@@ -21,6 +22,58 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
 app.disable('x-powered-by');
+
+// helmet's non-CSP defaults (HSTS, X-Content-Type-Options, X-Frame-Options,
+// Referrer-Policy, …) carry no compatibility risk for this app and are left
+// enforced. The CSP is different: it has to name every origin the page
+// actually loads from, and Firebase Auth's web SDK is easy to get wrong here
+// — sign-in also opens a hidden iframe on the auth domain to sync session
+// state, which a CSP with no frame-src silently breaks. Given this project
+// just had a real sign-in incident, the CSP starts in Report-Only mode: the
+// browser reports what it *would* have blocked (to /api/csp-report, logged
+// below) without blocking anything. Once a few days of real traffic show zero
+// reports, flip `reportOnly` to false.
+const authDomain = process.env.FIREBASE_AUTH_DOMAIN;
+app.use(helmet({
+  // helmet's own default here is 'same-origin', which isolates this page's
+  // browsing context group so thoroughly that a signInWithPopup() window can
+  // no longer call back to window.opener with the signed-in user — the popup
+  // just closes with nothing happening. 'same-origin-allow-popups' keeps the
+  // isolation everywhere except that one, Google-sign-in-shaped hole.
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  contentSecurityPolicy: {
+    reportOnly: true,
+    directives: {
+      defaultSrc: ["'self'"],
+      // The Firebase Auth SDK is imported straight from gstatic as an ES module.
+      scriptSrc: ["'self'", 'https://www.gstatic.com'],
+      styleSrc: ["'self'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      // The <select> arrow is an inline data: SVG; nothing else uses data:.
+      imgSrc: ["'self'", 'data:'],
+      // The identitytoolkit/securetoken calls are the Auth SDK signing in and
+      // refreshing tokens directly from the browser — never through this server.
+      connectSrc: ["'self'", 'https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com'],
+      // Firebase Auth's session-sync iframe, only if FIREBASE_AUTH_DOMAIN is set.
+      frameSrc: authDomain ? [`https://${authDomain}`] : ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      reportUri: '/api/csp-report',
+    },
+  },
+}));
+
+// Where the Report-Only CSP above sends what it would have blocked. Browsers
+// POST these with no Authorization header and a body type of
+// application/csp-report, which express.json() below does not parse by
+// default — hence its own narrow parser here.
+app.post('/api/csp-report', express.json({ type: ['application/json', 'application/csp-report'] }),
+  (req, res) => {
+    console.warn('[csp-report]', JSON.stringify(req.body));
+    res.status(204).end();
+  });
+
 app.use(express.json({ limit: '256kb' }));
 
 // Access log. Records whether an Authorization header arrived and how long the
