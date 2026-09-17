@@ -1078,6 +1078,10 @@ textarea { resize: vertical; line-height: 1.5; }
   .lesson-remove { justify-self: end; }
   .verify-panel { left: 8px; right: 8px; width: auto; }
   .tabbar-btn { font-size: 10.5px; }
+
+  /* At phone width the placeholder wraps to two lines but the box only had
+     room for one, so the second line was clipped at the tab bar's edge. */
+  .composer textarea { min-height: 64px; }
 }
 
 @media (min-width: 768px) {
@@ -1153,11 +1157,11 @@ textarea { resize: vertical; line-height: 1.5; }
 .lesson-remove:hover { background: var(--danger-soft); border-color: var(--danger-line); }
 
 @media (max-width: 767px) {
-  /* Three narrow columns left Location truncated mid-word. It moves above
-     Day/Time as its own full-width row — via `order`, so the DOM (and the
+  /* Three narrow columns left Location truncated mid-word. It becomes its
+     own full-width row below Day/Time — via `order`, so the DOM (and the
      desktop column order) is untouched. */
   .lesson-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .lesson-fields .field:has(.lesson-location) { grid-column: 1 / -1; order: -1; }
+  .lesson-fields .field:has(.lesson-location) { grid-column: 1 / -1; order: 1; }
 }
 
 /* ── auto reminders ── */
