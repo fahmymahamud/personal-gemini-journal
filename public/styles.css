@@ -465,6 +465,13 @@ textarea { resize: vertical; line-height: 1.5; }
 .connect-actions .btn { flex: 1; }
 .connect-help { margin: 10px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
 .connect-linked { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+@media (max-width: 767px) {
+  /* Side by side, the buttons left the name column so little width that
+     "Connected to Telegram" broke one word per line. Stacked, the name gets
+     the full row and the buttons wrap their own if they need to. */
+  .connect-linked { flex-direction: column; align-items: flex-start; }
+}
 .connect-ok { color: var(--success-text); font-size: 13px; font-weight: 600; }
 
 .btn-primary-outline { background: transparent; border-color: var(--accent-line); color: var(--accent-text); }
@@ -1060,16 +1067,17 @@ textarea { resize: vertical; line-height: 1.5; }
   .day-row { grid-template-columns: auto 1fr; }
   .day-side { grid-column: 1 / -1; justify-content: space-between; }
   /* One column: two fields side by side in a phone-width card leaves neither
-     enough room for a real value. */
+     enough room for a real value. (.rem-fields and .lesson-fields get their
+     own mobile arrangement further down, next to where each is defined —
+     a same-specificity rule here would lose to their later base rule.) */
   .ov { gap: 16px; }
-  .ov-grid, .rem-fields, .lesson-fields { grid-template-columns: 1fr; }
+  .ov-grid { grid-template-columns: 1fr; }
   .ov-box-h { padding: 16px 18px; font-size: 18px; }
   .ov-box-body { padding: 16px 18px 18px; }
   /* The trash button would otherwise sit alone in a tall second column beside
      three stacked fields. */
   .lesson-row { grid-template-columns: minmax(0, 1fr); }
   .lesson-remove { justify-self: end; }
-  .ov-foot { flex-direction: column-reverse; align-items: stretch; }
   .verify-panel { left: 8px; right: 8px; width: auto; }
   .tabbar-btn { font-size: 10.5px; }
 }
@@ -1139,6 +1147,14 @@ textarea { resize: vertical; line-height: 1.5; }
 .lesson-remove { color: var(--danger-text); }
 .lesson-remove:hover { background: var(--danger-soft); border-color: var(--danger-line); }
 
+@media (max-width: 767px) {
+  /* Three narrow columns left Location truncated mid-word. It moves above
+     Day/Time as its own full-width row — via `order`, so the DOM (and the
+     desktop column order) is untouched. */
+  .lesson-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lesson-fields .field:has(.lesson-location) { grid-column: 1 / -1; order: -1; }
+}
+
 /* ── auto reminders ── */
 .rems { display: flex; flex-direction: column; gap: 12px; }
 .rem {
@@ -1154,6 +1170,12 @@ textarea { resize: vertical; line-height: 1.5; }
 /* A lesson reminder with nothing selected cannot be saved — say so at the
    control rather than in an error line after the attempt. */
 .rem-lesson.is-missing { border-color: var(--danger-line); background: var(--danger-soft); }
+
+@media (max-width: 767px) {
+  /* Four narrow columns left every value showing one letter. Type sits
+     beside "For lesson", Day beside Time, in the same document order. */
+  .rem-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 /* ── switch ──
    The native checkbox stays in the DOM, stretched invisibly over the whole

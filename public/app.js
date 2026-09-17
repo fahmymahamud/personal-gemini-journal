@@ -773,9 +773,6 @@ function renderConnect(s) {
       warn.textContent = `Also linked to ${shared.map((o) => o.name).join(', ')} — `
         + 'if that is not the same parent, disconnect and resend the link.';
       warn.hidden = false;
-    } else if (!s.telegramName) {
-      warn.textContent = 'Linked before names were recorded — reconnect to confirm who this is.';
-      warn.hidden = false;
     } else {
       warn.hidden = true;
     }
