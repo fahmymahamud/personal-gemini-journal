@@ -1066,12 +1066,10 @@ textarea { resize: vertical; line-height: 1.5; }
   .event-fields { grid-template-columns: 1fr; }
   .day-row { grid-template-columns: auto 1fr; }
   .day-side { grid-column: 1 / -1; justify-content: space-between; }
-  /* One column: two fields side by side in a phone-width card leaves neither
-     enough room for a real value. (.rem-fields and .lesson-fields get their
-     own mobile arrangement further down, next to where each is defined —
-     a same-specificity rule here would lose to their later base rule.) */
+  /* .ov-grid, .rem-fields and .lesson-fields each get their own mobile
+     arrangement further down, next to where they're defined — a
+     same-specificity rule here would lose to their later base rule. */
   .ov { gap: 16px; }
-  .ov-grid { grid-template-columns: 1fr; }
   .ov-box-h { padding: 16px 18px; font-size: 18px; }
   .ov-box-body { padding: 16px 18px 18px; }
   /* The trash button would otherwise sit alone in a tall second column beside
@@ -1127,6 +1125,13 @@ textarea { resize: vertical; line-height: 1.5; }
 .ov-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .ov-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .ov-danger { display: flex; }
+
+@media (max-width: 767px) {
+  /* Same bug as .rem-fields/.lesson-fields: two columns side by side left
+     Name/Phone and Fee/Currency squeezed to unreadable widths on a phone,
+     because the fix has to land after this base rule to actually win it. */
+  .ov-grid { grid-template-columns: 1fr; }
+}
 
 /* Save sits at the end of the form it saves, outside every box, with the one
    irreversible action pushed to the far side so the two are never adjacent
