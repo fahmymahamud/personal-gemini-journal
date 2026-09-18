@@ -68,8 +68,41 @@ $('#toggle-mode').addEventListener('click', () => {
   $('[data-mode-text]').textContent = signUpMode ? 'Already have an account?' : 'New here?';
   $('#toggle-mode').textContent = signUpMode ? 'Sign in instead' : 'Create an account';
   $('#password').autocomplete = signUpMode ? 'new-password' : 'current-password';
+  // Turnstile only guards account creation — signing in doesn't need it.
+  $('#turnstile-widget').hidden = !signUpMode;
+  window.turnstile?.reset();
   showAuthError('');
 });
+
+/**
+ * Checks the signup form's Turnstile token with the server before letting a
+ * new account be created. Firebase's createUserWithEmailAndPassword talks
+ * straight to Google from the browser — this server is never in that
+ * request's path — so this is the only place a bot signing up through the
+ * visible form can be stopped before it costs a Firestore write and lands in
+ * the owner's inbox as a signup notification.
+ */
+async function verifyTurnstile() {
+  const token = window.turnstile?.getResponse();
+  if (!token) {
+    showAuthError('Please complete the verification check.');
+    return false;
+  }
+  try {
+    const res = await fetch('/api/turnstile/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    if (res.ok) return true;
+    const { error } = await res.json().catch(() => ({}));
+    showAuthError(error || 'Verification failed — please try again.');
+  } catch {
+    showAuthError('Could not reach the verification check — try again.');
+  }
+  window.turnstile?.reset();
+  return false;
+}
 
 $('#email-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -77,6 +110,7 @@ $('#email-form').addEventListener('submit', async (e) => {
   const submit = $('[data-submit]');
   submit.disabled = true;
   try {
+    if (signUpMode && !(await verifyTurnstile())) return;
     const fn = signUpMode ? createUserWithEmailAndPassword : signInWithEmailAndPassword;
     await fn(auth, $('#email').value.trim(), $('#password').value);
   } catch (err) {

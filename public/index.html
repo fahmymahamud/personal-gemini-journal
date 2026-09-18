@@ -54,6 +54,11 @@
         <span class="field-label">Password</span>
         <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" minlength="6" required>
       </label>
+      <!-- Signup only — hidden while signing in. Cloudflare's own widget fills
+           this div in and drops a hidden cf-turnstile-response input inside it
+           once solved; app.js reads that via window.turnstile.getResponse(). -->
+      <div id="turnstile-widget" class="cf-turnstile" data-sitekey="0x4AAAAAAE7fV4M5z6gl55kx"
+        data-action="signup" data-size="flexible" hidden></div>
       <button class="btn btn-primary btn-block" type="submit" data-submit>Sign in</button>
     </form>
 
@@ -853,6 +858,8 @@
 
 <div id="toast" class="toast" role="status" hidden></div>
 
+<!-- Turnstile: only the signup form uses it (#turnstile-widget above). -->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <script type="module" src="./app.js"></script>
 </body>
 </html>

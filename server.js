@@ -6,6 +6,7 @@ import helmet from 'helmet';
 
 import { requireAuth } from './src/auth.js';
 import configRoutes from './src/routes/config.js';
+import turnstileRoutes from './src/routes/turnstile.js';
 import studentRoutes from './src/routes/students.js';
 import chatRoutes from './src/routes/chat.js';
 import eventRoutes from './src/routes/events.js';
@@ -45,8 +46,9 @@ app.use(helmet({
     reportOnly: true,
     directives: {
       defaultSrc: ["'self'"],
-      // The Firebase Auth SDK is imported straight from gstatic as an ES module.
-      scriptSrc: ["'self'", 'https://www.gstatic.com'],
+      // gstatic: the Firebase Auth SDK, imported as an ES module.
+      // challenges.cloudflare.com: the Turnstile widget on the signup form.
+      scriptSrc: ["'self'", 'https://www.gstatic.com', 'https://challenges.cloudflare.com'],
       styleSrc: ["'self'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       // The <select> arrow is an inline data: SVG; nothing else uses data:.
@@ -54,8 +56,10 @@ app.use(helmet({
       // The identitytoolkit/securetoken calls are the Auth SDK signing in and
       // refreshing tokens directly from the browser — never through this server.
       connectSrc: ["'self'", 'https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com'],
-      // Firebase Auth's session-sync iframe, only if FIREBASE_AUTH_DOMAIN is set.
-      frameSrc: authDomain ? [`https://${authDomain}`] : ["'none'"],
+      // Firebase Auth's session-sync iframe (only if FIREBASE_AUTH_DOMAIN is
+      // set), plus the Turnstile widget's own challenge iframe.
+      frameSrc: [authDomain ? `https://${authDomain}` : null, 'https://challenges.cloudflare.com']
+        .filter(Boolean),
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
       formAction: ["'self'"],
@@ -117,6 +121,9 @@ app.get('/health', health);
 app.get('/healthz', health);
 
 app.use('/api/config', configRoutes);
+// Unauthenticated on purpose: signup is exactly the request that arrives
+// with no account yet to hold a token.
+app.use('/api/turnstile', turnstileRoutes);
 // Reads the caller's own plan. Outside requireActivePlan on purpose: an account
 // without an active plan still has to be able to ask why.
 app.use('/api/me', requireAuth, meRoutes);
