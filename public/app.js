@@ -11,7 +11,7 @@ const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 const state = {
   students: [],
   selectedId: null,
-  /** 'students' | 'calendar' — which view owns the main column. */
+  /** 'students' | 'calendar' | 'settings' — which view owns the main column. */
   view: 'students',
   /** First of the month currently drawn in the calendar grid. */
   calMonth: startOfMonth(new Date()),
@@ -265,9 +265,11 @@ function money(s) {
 function renderSelection() {
   const s = selectedStudent();
   const onCalendar = state.view === 'calendar';
+  const onSettings = state.view === 'settings';
   $('#calendar-pane').hidden = !onCalendar;
-  $('#no-selection').hidden = onCalendar || !!s;
-  $('#student-pane').hidden = onCalendar || !s;
+  $('#settings-pane').hidden = !onSettings;
+  $('#no-selection').hidden = onCalendar || onSettings || !!s;
+  $('#student-pane').hidden = onCalendar || onSettings || !s;
   if (!s) return;
   renderOverview(s);
   renderChatHead(s);
@@ -309,24 +311,34 @@ function setView(view) {
   state.view = view;
   if (isMobile()) {
     setPane(view === 'calendar' ? 'calendar'
+      : view === 'settings' ? 'settings'
       : (state.selectedId ? 'detail' : 'students'));
   }
   syncViewChrome();
   renderSelection();
   if (view === 'calendar') renderCalendar();
+  if (view === 'settings') renderSettings();
 }
 
-// Keeps the navbar button and the mobile tab bar agreeing with the state
+// Keeps the navbar buttons and the mobile tab bar agreeing with the state
 // without either of them owning it.
 function syncViewChrome() {
   const onCalendar = state.view === 'calendar';
-  const btn = $('#nav-calendar-btn');
-  btn.classList.toggle('is-active', onCalendar);
-  btn.setAttribute('aria-current', onCalendar ? 'page' : 'false');
+  const onSettings = state.view === 'settings';
+
+  const calBtn = $('#nav-calendar-btn');
+  calBtn.classList.toggle('is-active', onCalendar);
+  calBtn.setAttribute('aria-current', onCalendar ? 'page' : 'false');
+
+  const settingsBtn = $('#settings-btn');
+  settingsBtn.classList.toggle('is-active', onSettings);
+  settingsBtn.setAttribute('aria-current', onSettings ? 'page' : 'false');
 
   const pane = $('.layout').dataset.pane;
   for (const tab of $$('.tabbar-btn')) {
-    const on = tab.dataset.paneBtn === 'calendar' ? pane === 'calendar' : pane !== 'calendar';
+    const on = tab.dataset.paneBtn === 'calendar'
+      ? pane === 'calendar'
+      : pane !== 'calendar' && pane !== 'settings';
     tab.classList.toggle('is-active', on);
   }
 }
@@ -2478,9 +2490,7 @@ $('#verify-panel-close').addEventListener('click', () => { $('#verify-panel').hi
 // that a coach watching for a payment sees it land.
 setInterval(() => { if (auth.currentUser) loadPending(); }, 60_000);
 
-/* ════════════════ settings: the coach's own Telegram ════════════════ */
-
-const settingsDialog = $('#settings-dialog');
+/* ════════════════ settings ════════════════ */
 
 async function renderCoachTelegram() {
   let connected = false;
@@ -2502,12 +2512,61 @@ async function renderCoachTelegram() {
   }
 }
 
-$('#settings-btn').addEventListener('click', async () => {
-  settingsDialog.showModal();
+// A live probe rather than an assumed "connected": the coach is looking right
+// at this the moment something is actually wrong, so a stale green dot would
+// be worse than no dot at all.
+async function checkServerHealth() {
+  const dot = $('#health-dot');
+  const text = $('#health-text');
+  dot.className = 'health-dot is-checking';
+  text.textContent = 'Checking server…';
+  try {
+    const res = await fetch('/health');
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    dot.className = 'health-dot is-ok';
+    text.textContent = 'Server: Connected';
+  } catch {
+    dot.className = 'health-dot is-down';
+    text.textContent = 'Server: Unavailable';
+  }
+}
+
+// Paid plans are uncapped (see src/plan.js); 'legacy' and 'admin' predate or
+// sit outside billing entirely but read the same as Pro here.
+const PLAN_TIER = { none: 'starter', trial: 'starter', monthly: 'pro', annual: 'pro', legacy: 'pro', admin: 'pro' };
+const PLAN_NAME = { monthly: 'Monthly plan', annual: 'Annual plan', legacy: 'Legacy plan', admin: 'Admin' };
+
+function planStatusText(p) {
+  if (!p || p.plan === 'none') return 'Free plan';
+  if (p.plan === 'trial') {
+    if (p.phase !== 'active') return 'Trial — expired';
+    const d = p.daysLeft ?? 0;
+    return `Trial — ${d} day${d === 1 ? '' : 's'} left`;
+  }
+  return `${PLAN_NAME[p.plan] || 'Plan'} — active`;
+}
+
+function renderSubscription() {
+  const p = state.plan;
+  $('#plan-status').textContent = planStatusText(p);
+
+  const tier = PLAN_TIER[p?.plan] || 'starter';
+  $('#plan-tier-starter').classList.toggle('is-current', tier === 'starter');
+  $('#plan-tier-pro').classList.toggle('is-current', tier === 'pro');
+
+  const btn = $('#plan-upgrade-btn');
+  btn.href = PLAN_MAILTO;
+  btn.textContent = tier === 'pro' ? '⚙️ Manage subscription' : '⬆️ Upgrade plan';
+}
+
+async function renderSettings() {
+  $('#settings-email').textContent = auth.currentUser?.email || '';
+  checkServerHealth();
+  renderSubscription();
   await renderCoachTelegram();
-});
-settingsDialog.querySelector('[data-close-settings]')
-  .addEventListener('click', () => settingsDialog.close());
+}
+
+$('#settings-btn').addEventListener('click', () => setView('settings'));
 
 $('#coach-tg-disconnect').addEventListener('click', async () => {
   if (!confirm('Stop receiving payment notifications on Telegram?')) return;

@@ -432,6 +432,94 @@
           </div>
         </div>
       </div>
+
+      <!-- ── SETTINGS ── -->
+      <div id="settings-pane" hidden>
+        <div class="settings-body">
+          <h2 class="dialog-title settings-title">Settings</h2>
+
+          <section class="settings-section">
+            <h2 class="dialog-title">Notifications</h2>
+            <p class="dialog-sub">Get payment claims in your Telegram and confirm or reject them in the chat.</p>
+
+            <div id="coach-tg-off" class="sub-actions">
+              <a id="coach-tg-link" class="btn btn-primary btn-block" target="_blank" rel="noopener">📲 Connect my Telegram</a>
+              <p class="sub-help">Opens @RemindClientBot and links this account.</p>
+            </div>
+
+            <div id="coach-tg-on" class="connect-linked" hidden>
+              <span class="connect-ok">✅ Connected — notifications are on</span>
+              <button id="coach-tg-disconnect" class="btn btn-ghost btn-sm" type="button">Disconnect</button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <h2 class="dialog-title">App</h2>
+            <p class="dialog-sub">Open RemindClient from your home screen, like any app.</p>
+
+            <div class="sub-actions">
+              <button id="install-btn" class="btn btn-primary-outline btn-block install-btn" type="button" hidden>📱 Add to Home Screen</button>
+              <p class="sub-help">iPhone: tap Share → Add to Home Screen</p>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <h2 class="dialog-title">Calendar</h2>
+            <p class="dialog-sub">See every lesson in the calendar app you already use.</p>
+
+            <div class="sub-actions">
+              <button id="calendar-btn" class="btn btn-primary-outline btn-block" type="button">📅 Subscribe to Lesson Calendar</button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <h2 class="dialog-title">Account</h2>
+
+            <p id="settings-email" class="settings-email"></p>
+
+            <p class="health-status">
+              <span id="health-dot" class="health-dot is-checking" aria-hidden="true"></span>
+              <span id="health-text">Checking server…</span>
+            </p>
+
+            <div class="sub-actions">
+              <button id="signout-btn" class="btn btn-ghost btn-block" type="button">🚪 Sign Out</button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <h2 class="dialog-title">Subscription</h2>
+            <p class="dialog-sub">See your plan and what's included.</p>
+
+            <p id="plan-status" class="plan-status"></p>
+
+            <div class="plan-compare">
+              <div id="plan-tier-starter" class="plan-tier">
+                <span class="plan-tier-name">Starter</span>
+                <span class="plan-tier-badge">Current plan</span>
+                <ul class="plan-tier-features">
+                  <li>20 clients</li>
+                  <li>20 AI messages a day</li>
+                  <li>2 auto reminders per client</li>
+                </ul>
+              </div>
+              <div id="plan-tier-pro" class="plan-tier">
+                <span class="plan-tier-name">Pro</span>
+                <span class="plan-tier-badge">Current plan</span>
+                <ul class="plan-tier-features">
+                  <li>Unlimited clients</li>
+                  <li>Unlimited AI messages</li>
+                  <li>Unlimited auto reminders</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="sub-actions">
+              <a id="plan-upgrade-btn" class="btn btn-primary-outline btn-block" target="_blank" rel="noopener">⬆️ Upgrade plan</a>
+            </div>
+          </section>
+        </div>
+      </div>
     </main>
   </div>
 
@@ -747,59 +835,6 @@
 </dialog>
 
 <!-- ═══════════ SETTINGS ═══════════ -->
-<dialog id="settings-dialog" class="dialog dialog-sm">
-  <div class="sub-wrap">
-    <!-- UI polish 3: top-level heading, so the gear icon lands somewhere named -->
-    <h2 class="dialog-title settings-title">Settings</h2>
-
-    <section class="settings-section">
-      <h2 class="dialog-title">Notifications</h2>
-      <p class="dialog-sub">Get payment claims in your Telegram and confirm or reject them in the chat.</p>
-
-      <div id="coach-tg-off" class="sub-actions">
-        <a id="coach-tg-link" class="btn btn-primary btn-block" target="_blank" rel="noopener">📲 Connect my Telegram</a>
-        <p class="sub-help">Opens @RemindClientBot and links this account.</p>
-      </div>
-
-      <div id="coach-tg-on" class="connect-linked" hidden>
-        <span class="connect-ok">✅ Connected — notifications are on</span>
-        <button id="coach-tg-disconnect" class="btn btn-ghost btn-sm" type="button">Disconnect</button>
-      </div>
-    </section>
-
-    <section class="settings-section">
-      <h2 class="dialog-title">App</h2>
-      <p class="dialog-sub">Open RemindClient from your home screen, like any app.</p>
-
-      <div class="sub-actions">
-        <button id="install-btn" class="btn btn-primary-outline btn-block install-btn" type="button" hidden>📱 Add to Home Screen</button>
-        <p class="sub-help">iPhone: tap Share → Add to Home Screen</p>
-      </div>
-    </section>
-
-    <section class="settings-section">
-      <h2 class="dialog-title">Calendar</h2>
-      <p class="dialog-sub">See every lesson in the calendar app you already use.</p>
-
-      <div class="sub-actions">
-        <button id="calendar-btn" class="btn btn-primary-outline btn-block" type="button">📅 Subscribe to Lesson Calendar</button>
-      </div>
-    </section>
-
-    <section class="settings-section">
-      <h2 class="dialog-title">Account</h2>
-      <div class="sub-actions">
-        <button id="signout-btn" class="btn btn-ghost btn-block" type="button">🚪 Sign Out</button>
-      </div>
-    </section>
-
-    <div class="dialog-foot">
-      <span class="spacer"></span>
-      <button class="btn btn-ghost" type="button" data-close-settings>Close</button>
-    </div>
-  </div>
-</dialog>
-
 <!-- ═══════════ DID THEY PAY? ═══════════
      Asked after handing a message off to WhatsApp. The app cannot see what
      happened in the other window, and a chaser sent is nearly always a chaser
